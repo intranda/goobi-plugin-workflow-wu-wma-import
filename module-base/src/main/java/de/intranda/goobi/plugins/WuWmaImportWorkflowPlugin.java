@@ -39,10 +39,10 @@ import ugh.fileformats.mets.MetsMods;
 
 @PluginImplementation
 @Log4j2
-public class KickStartWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
+public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 
     @Getter
-    private String title = "intranda_workflow_kick_start";
+    private String title = "intranda_workflow_wu_wma_import";
     private long lastPush = System.currentTimeMillis();
     @Getter
     private List<ImportSet> importSets;
@@ -68,14 +68,14 @@ public class KickStartWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 
     @Override
     public String getGui() {
-        return "/uii/plugin_workflow_kick_start.xhtml";
+        return "/uii/plugin_workflow_wu_wma_import.xhtml";
     }
 
     /**
      * Constructor
      */
-    public KickStartWorkflowPlugin() {
-        log.info("KickStart importer workflow plugin started");
+    public WuWmaImportWorkflowPlugin() {
+        log.info("WuWmaImport importer workflow plugin started");
 
         // read important configuration first
         readConfiguration();

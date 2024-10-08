@@ -5,8 +5,8 @@
 		<exec executable="mvn">
 			<arg value="package"/>
 		</exec>
-		<copy file="module-main/target/plugin_intranda_workflow_kick_start.jar" todir="/opt/digiverso/goobi/plugins/workflow/" overwrite="true"/>
-		<copy file="module-gui/target/plugin_intranda_workflow_kick_start-GUI.jar" todir="/opt/digiverso/goobi/plugins/GUI/" overwrite="true"/>
+		<copy file="module-main/target/plugin_intranda_workflow_wu_wma_import.jar" todir="/opt/digiverso/goobi/plugins/workflow/" overwrite="true"/>
+		<copy file="module-gui/target/plugin_intranda_workflow_wu_wma_import-GUI.jar" todir="/opt/digiverso/goobi/plugins/GUI/" overwrite="true"/>
 	</target>
 
 </project>

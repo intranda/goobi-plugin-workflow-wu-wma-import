@@ -8,10 +8,10 @@
 	<importSet title="e" source="Max Mustermann" target="Author" person="true"/>
 	
 	<!-- which folder to use as import source -->
-	<importFolder>/opt/digiverso/import/kick_start/</importFolder>
+	<importFolder>/opt/digiverso/import/wu_wma_import/</importFolder>
 	
 	<!-- which workflow to use -->
-	<workflow>KickStart_Workflow</workflow>
+	<workflow>WuWmaImport_Workflow</workflow>
 	
 	<!-- which publication type to use -->
 	<publicationType>Monograph</publicationType>

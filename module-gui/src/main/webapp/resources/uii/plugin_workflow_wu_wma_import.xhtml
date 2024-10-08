@@ -56,18 +56,18 @@
     						</div>
     						<div class="box-content">
     							<h:panelGroup
-    								rendered="#{!LoginForm.hasRole('Plugin_workflow_kick_start')}">
+    								rendered="#{!LoginForm.hasRole('Plugin_workflow_wu_wma_import')}">
     								<h:outputText
     									styleClass="alert alert-danger alert-dismissable margin-bottom-10 margin-top-10"
-    									value="#{msgs.plugin_administration_missingPermission} Plugin_workflow_kick_start"/>
+    									value="#{msgs.plugin_administration_missingPermission} Plugin_workflow_wu_wma_import"/>
     							</h:panelGroup>
     
     							<h:panelGroup id="actionform" styleClass="col-sm-12"
-    								rendered="#{LoginForm.hasRole('Plugin_workflow_kick_start')}">
+    								rendered="#{LoginForm.hasRole('Plugin_workflow_wu_wma_import')}">
     								
 <!--                                     <h:outputText -->
 <!--                                         styleClass="alert alert-warning alert-dismissable margin-bottom-10 margin-top-10" -->
-<!--                                         value="#{msgs.plugin_intranda_workflow_kick_start_introduction}: #{NavigationForm.workflowPlugin.importFolder}"/> -->
+<!--                                         value="#{msgs.plugin_intranda_workflow_wu_wma_import_introduction}: #{NavigationForm.workflowPlugin.importFolder}"/> -->
     							    
                                 
                                     <div class="form-actions">
@@ -92,10 +92,10 @@
                                             <h:panelGroup class="#{NavigationForm.workflowPlugin.progress ge 0 ? 'col-sm-4' : 'col-sm-12'}">
                                                 
                                                 <!-- import button -->
-                                                <div class="btn-group font-size-s pull-right" data-toggle="tooltip" title="#{msgs.plugin_intranda_workflow_kick_start_startImportTitle}">
+                                                <div class="btn-group font-size-s pull-right" data-toggle="tooltip" title="#{msgs.plugin_intranda_workflow_wu_wma_import_startImportTitle}">
                                                     <a class="btn  btn-blue font-size-s dropdown-toggle" data-toggle="dropdown">
                                                         <i class="fa fa-play-circle margin-right-10"></i>
-                                                        <h:outputText styleClass="margin-right-5" value="#{msgs.plugin_intranda_workflow_kick_start_startImport}" />
+                                                        <h:outputText styleClass="margin-right-5" value="#{msgs.plugin_intranda_workflow_wu_wma_import_startImport}" />
                                                         <span class="caret"></span>
                                                     </a>
                                         
@@ -133,7 +133,7 @@
 
         <!-- log view -->
         <h:panelGroup id="logs">
-            <h:panelGroup styleClass="logs" rendered="#{LoginForm.hasRole('Plugin_workflow_kick_start')}">
+            <h:panelGroup styleClass="logs" rendered="#{LoginForm.hasRole('Plugin_workflow_wu_wma_import')}">
                 <ui:repeat
                     var="log"
                     value="#{NavigationForm.workflowPlugin.logQueue}">
