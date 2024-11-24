@@ -3,7 +3,11 @@
   <parent>
     <groupId>io.goobi.workflow</groupId>
     <artifactId>workflow-base</artifactId>
+<<<<<<< HEAD
     <version>24.11-SNAPSHOT</version>
+=======
+    <version>24.10-SNAPSHOT</version>
+>>>>>>> working
     <relativePath />
   </parent>
   <groupId>io.goobi.workflow.plugin</groupId>
