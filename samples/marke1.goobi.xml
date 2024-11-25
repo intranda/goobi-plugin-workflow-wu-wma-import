@@ -59,6 +59,14 @@
     <!-- process title -->
     <title>doc_id_199</title>
 
+    <!-- properties to add -->
+	<property name="Font type">Antiqua</property>
+    <property name="Resolution">400 dpi</property>
+
+    <!-- message for the journal (debug|info|warn|error|user|important ...) -->
+    <journal type="info" creator="-automatic-">Import über Massenimport-Plugin</journal>
+    <journal type="debug" creator="-automatic-">Bildkonvertierung fehlgeschlagen</journal>
+
     <!-- content files for specific target folder (master|main|source ...)-->
     <content folder="master">/opt/digiverso/import/docs/199/Dokument.docx</content>
     <content folder="media">/opt/digiverso/import/docs/199/Dokument01.tif</content>
