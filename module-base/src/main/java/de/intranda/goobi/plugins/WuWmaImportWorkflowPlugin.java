@@ -3,18 +3,26 @@ package de.intranda.goobi.plugins;
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Queue;
-import java.util.UUID;
 
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.commons.configuration.HierarchicalConfiguration;
+import org.apache.commons.io.FileUtils;
+import org.goobi.beans.JournalEntry;
+import org.goobi.beans.JournalEntry.EntryType;
 import org.goobi.beans.Process;
 import org.goobi.beans.Step;
+import org.goobi.production.enums.LogType;
 import org.goobi.production.enums.PluginType;
 import org.goobi.production.plugin.interfaces.IPushPlugin;
 import org.goobi.production.plugin.interfaces.IWorkflowPlugin;
 import org.omnifaces.cdi.PushContext;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
 import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.config.ConfigurationHelper;
@@ -23,23 +31,41 @@ import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.ScriptThreadWithoutHibernate;
 import de.sub.goobi.helper.StorageProvider;
 import de.sub.goobi.helper.enums.StepStatus;
+import de.sub.goobi.persistence.managers.JournalManager;
 import de.sub.goobi.persistence.managers.ProcessManager;
+import io.goobi.workflow.importer.model.SimpleContent;
+import io.goobi.workflow.importer.model.SimpleCorporate;
+import io.goobi.workflow.importer.model.SimpleGroup;
+import io.goobi.workflow.importer.model.SimpleImportObject;
+import io.goobi.workflow.importer.model.SimpleJournalEntry;
+import io.goobi.workflow.importer.model.SimpleMetadata;
+import io.goobi.workflow.importer.model.SimplePerson;
+import io.goobi.workflow.importer.model.SimpleProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 import net.xeoh.plugins.base.annotations.PluginImplementation;
+import ugh.dl.Corporate;
 import ugh.dl.DigitalDocument;
 import ugh.dl.DocStruct;
 import ugh.dl.Fileformat;
 import ugh.dl.Metadata;
+import ugh.dl.MetadataGroup;
+import ugh.dl.MetadataGroupType;
+import ugh.dl.MetadataType;
+import ugh.dl.NamePart;
 import ugh.dl.Person;
 import ugh.dl.Prefs;
+import ugh.exceptions.MetadataTypeNotAllowedException;
 import ugh.fileformats.mets.MetsMods;
 
 @PluginImplementation
 @Log4j2
 public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
+
+    @Getter
+    private String id = "intranda_workflow_wu_wma_import";
 
     @Getter
     private String title = "intranda_workflow_wu_wma_import";
@@ -56,11 +82,10 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
     @Getter
     int itemsTotal = 0;
     @Getter
-    private Queue<LogMessage> logQueue = new CircularFifoQueue<LogMessage>(48);
-    private String importFolder;
+    private Queue<LogMessage> logQueue = new CircularFifoQueue<LogMessage>(50000);
+
     private String workflow;
-    private String publicationType;
-    
+
     @Override
     public PluginType getType() {
         return PluginType.Workflow;
@@ -85,24 +110,23 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
      * private method to read main configuration file
      */
     private void readConfiguration() {
-    	updateLog("Start reading the configuration");
-    	
+        updateLog("Start reading the configuration");
+
+        // set specific title
+        title = ConfigPlugins.getPluginConfig(id).getString("title");
+
         // read some main configuration
-        importFolder = ConfigPlugins.getPluginConfig(title).getString("importFolder");
-        workflow = ConfigPlugins.getPluginConfig(title).getString("workflow");
-        publicationType = ConfigPlugins.getPluginConfig(title).getString("publicationType");
-        
+        workflow = ConfigPlugins.getPluginConfig(id).getString("workflow");
+
         // read list of mapping configuration
         importSets = new ArrayList<ImportSet>();
-        List<HierarchicalConfiguration> mappings = ConfigPlugins.getPluginConfig(title).configurationsAt("importSet");
+        List<HierarchicalConfiguration> mappings = ConfigPlugins.getPluginConfig(id).configurationsAt("importSet");
         for (HierarchicalConfiguration node : mappings) {
             String settitle = node.getString("[@title]", "-");
             String source = node.getString("[@source]", "-");
-            String target = node.getString("[@target]", "-");
-            boolean person = node.getBoolean("[@person]", false);
-            importSets.add(new ImportSet(settitle, source, target, person));
+            importSets.add(new ImportSet(settitle, source));
         }
-        
+
         // write a log into the UI
         updateLog("Configuration successfully read");
     }
@@ -120,122 +144,149 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
      * @param importConfiguration
      */
     public void startImport(ImportSet importset) {
-    	updateLog("Start import for: " + importset.getTitle());
+        updateLog("Start import for: " + importset.getTitle());
         progress = 0;
         BeanHelper bhelp = new BeanHelper();
-        
+        ObjectMapper om = new XmlMapper();
+
         // run the import in a separate thread to allow a dynamic progress bar
         run = true;
         Runnable runnable = () -> {
-            
+
             // read input file
             try {
-            	updateLog("Run through all import files");
-                int start = 0;
-                int end = 20;
-                itemsTotal = end - start;
-                itemCurrent = start;
-                
-                // run through import files (e.g. from importFolder)
-                for (int i = start; i < end; i++) {
+                updateLog("Run through all import files");
+                // run through all goobi.xml files in the given folder
+                String[] extensions = { "goobi.xml" };
+                Collection<File> files = FileUtils.listFiles(new File(importset.source), extensions, true);
+                files.removeIf(file -> file.isHidden());
+                itemsTotal = files.size();
+                itemCurrent = 0;
+
+                for (File file : files) {
+                    // little delay
                     Thread.sleep(100);
                     if (!run) {
                         break;
                     }
 
-                    // create a process name (here as UUID) and make sure it does not exist yet
-                    String processname = UUID.randomUUID().toString();  
-                    String regex = ConfigurationHelper.getInstance().getProcessTitleReplacementRegex();
-                    processname = processname.replaceAll(regex, "_").trim();   
-                    
-                    if (ProcessManager.countProcessTitle(processname, null) > 0) {
-                        int tempCounter = 1;
-                        String tempName = processname + "_" + tempCounter;
-                        while(ProcessManager.countProcessTitle(tempName, null) > 0) {
-                            tempCounter++;
-                            tempName = processname + "_" + tempCounter;
-                        }
-                        processname = tempName;
-                    }
-                	updateLog("Start importing: " + processname, 1);
+                    if (file.exists() && !file.isHidden()) {
+                        try {
+                            updateLog("Start importing: Record " + (itemCurrent + 1), 1);
 
-                    try {
-                        // get the correct workflow to use
-                        Process template = ProcessManager.getProcessByExactTitle(workflow);
-                        Prefs prefs = template.getRegelsatz().getPreferences();
-                        Fileformat fileformat = new MetsMods(prefs);
-                        DigitalDocument dd = new DigitalDocument();
-                        fileformat.setDigitalDocument(dd);
+                            // get the correct workflow to use
+                            Process template = ProcessManager.getProcessByExactTitle(workflow);
+                            Prefs prefs = template.getRegelsatz().getPreferences();
 
-                        // add the physical basics
-                        DocStruct physical = dd.createDocStruct(prefs.getDocStrctTypeByName("BoundBook"));
-                        dd.setPhysicalDocStruct(physical);
-                        Metadata mdForPath = new Metadata(prefs.getMetadataTypeByName("pathimagefiles"));
-                        mdForPath.setValue("file:///");
-                        physical.addMetadata(mdForPath);
+                            // create digital document
+                            Fileformat fileformat = new MetsMods(prefs);
+                            DigitalDocument dd = new DigitalDocument();
+                            fileformat.setDigitalDocument(dd);
 
-                        // add the logical basics
-                        DocStruct logical = dd.createDocStruct(prefs.getDocStrctTypeByName(publicationType));
-                        dd.setLogicalDocStruct(logical);
+                            // add the physical basics
+                            DocStruct physical = dd.createDocStruct(prefs.getDocStrctTypeByName("BoundBook"));
+                            dd.setPhysicalDocStruct(physical);
+                            Metadata mdForPath = new Metadata(prefs.getMetadataTypeByName("pathimagefiles"));
+                            mdForPath.setValue("/images/");
+                            physical.addMetadata(mdForPath);
 
-                        // create the metadata fields by reading the config (and get content from the content files of course)
-                        for (ImportSet importSet : importSets) {
-                            // treat persons different than regular metadata
-                            if (importSet.isPerson()) {
-                            	updateLog("Add person '" + importSet.getTarget() + "' with value '" + importSet.getSource() + "'");
-                                Person p = new Person(prefs.getMetadataTypeByName(importSet.getTarget()));
-                                String firstname = importSet.getSource().substring(0, importSet.getSource().indexOf(" "));
-                                String lastname = importSet.getSource().substring(importSet.getSource().indexOf(" "));
-                                p.setFirstname(firstname);
-                                p.setLastname(lastname);
-                                logical.addPerson(p);       
-                            } else {
-                            	updateLog("Add metadata '" + importSet.getTarget() + "' with value '" + importSet.getSource() + "'");
-                                Metadata mdTitle = new Metadata(prefs.getMetadataTypeByName(importSet.getTarget()));
-                                mdTitle.setValue(importSet.getSource());
-                                logical.addMetadata(mdTitle);
+                            // read the xml file
+                            SimpleImportObject sio = om.readValue(file, SimpleImportObject.class);
+
+                            // add the logical basics
+                            DocStruct logical = dd.createDocStruct(prefs.getDocStrctTypeByName(sio.getData().getType()));
+                            if (logical.getType() == null) {
+                                updateLog("The Publication type with name '" + sio.getData().getType()
+                                        + "' does not exist within the ruleset. Process cannot be created.", 3);
+                                throw new MetadataTypeNotAllowedException(
+                                        "Publication type " + sio.getData().getType() + " does not exist. Process creation not possible.");
                             }
-                        }
+                            dd.setLogicalDocStruct(logical);
 
-                        // save the process
-                        Process process = bhelp.createAndSaveNewProcess(template, processname, fileformat);
-
-                        // add some properties
-                        bhelp.EigenschaftHinzufuegen(process, "Template", template.getTitel());
-                        bhelp.EigenschaftHinzufuegen(process, "TemplateID", "" + template.getId());
-                        ProcessManager.saveProcess(process);
-                        
-                        // if media files are given, import these into the media folder of the process
-                        updateLog("Start copying media files");
-                        String targetBase = process.getImagesOrigDirectory(false);
-                        File pdf = new File(importFolder, "file.pdf");
-                        if (pdf.canRead()) {
-                            StorageProvider.getInstance().createDirectories(Paths.get(targetBase));
-                            StorageProvider.getInstance().copyFile(Paths.get(pdf.getAbsolutePath()), Paths.get(targetBase, "file.pdf"));
-                        }
-
-                        // start any open automatic tasks for the created process
-                        for (Step s : process.getSchritteList()) {
-                            if (s.getBearbeitungsstatusEnum().equals(StepStatus.OPEN) && s.isTypAutomatisch()) {
-                                ScriptThreadWithoutHibernate myThread = new ScriptThreadWithoutHibernate(s);
-                                myThread.startOrPutToQueue();
+                            // create all metadata fields
+                            for (SimpleMetadata sm : sio.getData().getMetadatas()) {
+                                logical.addMetadata(getMetadata(prefs, sm));
                             }
+
+                            // create all corporates
+                            for (SimpleCorporate sc : sio.getData().getCorporates()) {
+                                logical.addCorporate(getCorporate(prefs, sc));
+                            }
+
+                            // create all metadata groups
+                            for (SimpleGroup sg : sio.getData().getGroups()) {
+                                logical.addMetadataGroup(getGroup(prefs, sg));
+                            }
+
+                            // create all persons
+                            for (SimplePerson sp : sio.getData().getPersons()) {
+                                logical.addPerson(getPerson(prefs, sp));
+                            }
+
+                            // get process title
+                            String processname = sio.getProcess().getTitle();
+                            String regex = ConfigurationHelper.getInstance().getProcessTitleReplacementRegex();
+                            processname = processname.replaceAll(regex, "_").trim();
+
+                            // save the process
+                            Process process = bhelp.createAndSaveNewProcess(template, processname, fileformat);
+
+                            // add journal entries
+                            for (SimpleJournalEntry j : sio.getProcess().getJournalentries()) {
+                                JournalEntry entry = new JournalEntry(process.getId(), new Date(), "Plugin " + title,
+                                        LogType.getByTitle(j.getType().toLowerCase()), j.getValue(), EntryType.PROCESS);
+                                JournalManager.saveJournalEntry(entry);
+                            }
+
+                            // add properties
+                            for (SimpleProperty spr : sio.getProcess().getProperties()) {
+                                bhelp.EigenschaftHinzufuegen(process, spr.getName(), spr.getValue());
+                            }
+
+                            ProcessManager.saveProcess(process);
+
+                            // if media files are given, import these into the media folder of the process
+                            updateLog("Start copying media files");
+
+                            for (SimpleContent con : sio.getProcess().getContents()) {
+                                String targetBase = process.getConfiguredImageFolder(con.getFolder().trim());
+
+                                // if the target folder cannot be found
+                                if (targetBase == null) {
+                                    updateLog("Error: Target folder '" + con.getFolder() + "' does not exist for file '" + con.getSource() + "'", 3);
+                                } else {
+                                    File contentfile = new File(con.getSource());
+                                    if (contentfile.canRead()) {
+                                        StorageProvider.getInstance().createDirectories(Paths.get(targetBase));
+                                        StorageProvider.getInstance()
+                                                .copyFile(Paths.get(contentfile.getAbsolutePath()), Paths.get(targetBase, contentfile.getName()));
+                                    }
+                                }
+                            }
+
+                            // start any open automatic tasks for the created process
+                            for (Step s : process.getSchritteList()) {
+                                if (StepStatus.OPEN.equals(s.getBearbeitungsstatusEnum()) && s.isTypAutomatisch()) {
+                                    ScriptThreadWithoutHibernate myThread = new ScriptThreadWithoutHibernate(s);
+                                    myThread.startOrPutToQueue();
+                                }
+                            }
+                            updateLog("Process successfully created with ID: " + process.getId());
+
+                        } catch (Exception e) {
+                            log.error("Error while creating a process during the import", e);
+                            updateLog("Error while creating a process during the import: " + e.getMessage(), 3);
+                            Helper.setFehlerMeldung("Error while creating a process during the import: " + e.getMessage());
+                            pusher.send("error");
                         }
-                        updateLog("Process successfully created with ID: " + process.getId());
 
-                    } catch (Exception e) {
-                        log.error("Error while creating a process during the import", e);
-                        updateLog("Error while creating a process during the import: " + e.getMessage(), 3);
-                        Helper.setFehlerMeldung("Error while creating a process during the import: " + e.getMessage());
-                        pusher.send("error");
                     }
-
                     // recalculate progress
                     itemCurrent++;
                     progress = 100 * itemCurrent / itemsTotal;
                     updateLog("Processing of record done.");
                 }
-                
+
                 // finally last push
                 run = false;
                 Thread.sleep(2000);
@@ -248,6 +299,113 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 
         };
         new Thread(runnable).start();
+
+    }
+
+    /**
+     * Generate a Corporate out of a {@link SimpleCorporate}
+     *
+     * @param prefs
+     * @param sc
+     * @return
+     * @throws MetadataTypeNotAllowedException
+     */
+    private Corporate getCorporate(Prefs prefs, SimpleCorporate sc) throws MetadataTypeNotAllowedException {
+        MetadataType mdt = prefs.getMetadataTypeByName(sc.getRole());
+        if (mdt == null) {
+            updateLog("The metadata type with name '" + sc.getRole()
+                    + "' does not exist within the ruleset.", 3);
+        }
+        Corporate c = new Corporate(mdt);
+        c.setMainName(sc.getName());
+        c.setAuthorityFile(sc.getAuthority(), sc.getAuthorityURI(), sc.getValueURI());
+        c.setPartName(sc.getPartname());
+        List<NamePart> subnames = new ArrayList<NamePart>();
+        for (String s : sc.getSubnames()) {
+            subnames.add(new NamePart(s, s));
+        }
+        c.setSubNames(subnames);
+        return c;
+    }
+
+    /**
+     * Generate a Metadata out of a {@link SimpleMetadata}
+     *
+     * @param prefs
+     * @param sm
+     * @return
+     * @throws MetadataTypeNotAllowedException
+     */
+    private Metadata getMetadata(Prefs prefs, SimpleMetadata sm) throws MetadataTypeNotAllowedException {
+        MetadataType mdt = prefs.getMetadataTypeByName(sm.getType());
+        if (mdt == null) {
+            updateLog("The metadata type with name '" + sm.getType()
+                    + "' does not exist within the ruleset.", 3);
+        }
+        Metadata m = new Metadata(mdt);
+        m.setValue(sm.getValue());
+        m.setAuthorityFile(sm.getAuthority(), sm.getAuthorityURI(), sm.getValueURI());
+        return m;
+    }
+
+    /**
+     * Generate a Person out of a {@link SimplePerson}
+     *
+     * @param prefs
+     * @param sp
+     * @return
+     * @throws MetadataTypeNotAllowedException
+     */
+    private Person getPerson(Prefs prefs, SimplePerson sp) throws MetadataTypeNotAllowedException {
+        MetadataType mdt = prefs.getMetadataTypeByName(sp.getRole());
+        if (mdt == null) {
+            updateLog("The metadata type with name '" + sp.getRole()
+                    + "' does not exist within the ruleset.", 3);
+        }
+        Person p = new Person(mdt);
+        p.setFirstname(sp.getFirstname());
+        p.setLastname(sp.getLastname());
+        p.setAuthorityFile(sp.getAuthority(), sp.getAuthorityURI(), sp.getValueURI());
+        return p;
+    }
+
+    /**
+     * Generate a MetadataGroup out of a {@link SimpleGroup}
+     *
+     * @param prefs
+     * @param sg
+     * @return
+     * @throws MetadataTypeNotAllowedException
+     */
+    private MetadataGroup getGroup(Prefs prefs, SimpleGroup sg) throws MetadataTypeNotAllowedException {
+        MetadataGroupType mdt = prefs.getMetadataGroupTypeByName(sg.getType());
+        if (mdt == null) {
+            updateLog("The metadata group type with name '" + sg.getType()
+                    + "' does not exist within the ruleset.", 3);
+        }
+        MetadataGroup group = new MetadataGroup(mdt);
+
+        // create all metadata fields
+        for (SimpleMetadata sm : sg.getMetadatas()) {
+            group.addMetadata(getMetadata(prefs, sm));
+        }
+
+        // create all corporates
+        //        for (SimpleCorporate sc : sg.getCorporates()) {
+        //            group.addCorporate(getCorporate(prefs, sc));
+        //        }
+
+        // create all metadata groups
+        for (SimpleGroup ssg : sg.getGroups()) {
+            group.addMetadataGroup(getGroup(prefs, ssg));
+        }
+
+        // create all persons
+        for (SimplePerson sp : sg.getPersons()) {
+            group.addPerson(getPerson(prefs, sp));
+        }
+
+        return group;
     }
 
     @Override
@@ -255,34 +413,34 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
         this.pusher = pusher;
     }
 
-	/**
-	 * simple method to send status message to gui
-	 * @param logmessage
-	 */
-	private void updateLog(String logmessage) {
-		updateLog(logmessage, 0);
-	}
-	
-	/**
-	 * simple method to send status message with specific level to gui
-	 * @param logmessage
-	 */
-	private void updateLog(String logmessage, int level) {
-		logQueue.add(new LogMessage(logmessage, level));
-		log.debug(logmessage);
-		if (pusher != null && System.currentTimeMillis() - lastPush > 500) {
+    /**
+     * simple method to send status message to gui
+     *
+     * @param logmessage
+     */
+    private void updateLog(String logmessage) {
+        updateLog(logmessage, 0);
+    }
+
+    /**
+     * simple method to send status message with specific level to gui
+     *
+     * @param logmessage
+     */
+    private void updateLog(String logmessage, int level) {
+        logQueue.add(new LogMessage(logmessage, level));
+        log.debug(logmessage);
+        if (pusher != null && System.currentTimeMillis() - lastPush > 500) {
             lastPush = System.currentTimeMillis();
             pusher.send("update");
         }
-	}
-	
+    }
+
     @Data
     @AllArgsConstructor
     public class ImportSet {
         private String title;
         private String source;
-        private String target;
-        private boolean person;
     }
 
     @Data

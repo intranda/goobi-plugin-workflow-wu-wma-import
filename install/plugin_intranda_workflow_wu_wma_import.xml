@@ -1,19 +1,14 @@
 <config_plugin>
 	
-	<!-- import set existing of excel files and pdf files -->
-	<importSet title="a" source="Source Field A" target="TitleDocMain"/>
-	<importSet title="b" source="Source Field B" target="CatalogIDSource"/>
-	<importSet title="c" source="Source Field C" target="CatalogIDDigital"/>
-	<importSet title="d" source="Source Field D" target="shelfmarksource"/>
-	<importSet title="e" source="Max Mustermann" target="Author" person="true"/>
-	
-	<!-- which folder to use as import source -->
-	<importFolder>/opt/digiverso/import/wu_wma_import/</importFolder>
+	<title>Mass import for the WU</title>
+
+	<!-- importsets with source folder definition -->
+	<importSet title="Markenstudien 1" source="/opt/digiverso/import/markenstudien01/" />
+	<importSet title="Markenstudien 2" source="/opt/digiverso/import/markenstudien02/" />
+	<importSet title="Markenstudien 3" source="/opt/digiverso/import/markenstudien03/" />
+	<importSet title="Markenstudien 4" source="/opt/digiverso/import/markenstudien04/" />
 	
 	<!-- which workflow to use -->
-	<workflow>WuWmaImport_Workflow</workflow>
-	
-	<!-- which publication type to use -->
-	<publicationType>Monograph</publicationType>
-	
+	<workflow>Sample_Workflow</workflow>
+		
 </config_plugin>

@@ -1,0 +1,76 @@
+<goobi-import>
+
+  <!-- data for mets file -->
+  <data type="BrandStudies">
+    <!-- metadata -->
+    <metadata label="Forschungsmethode" type="WmsResearchMethod" authority="gnd" authorityURI="http://d-nb.info/gnd/" valueURI="114017276X">Persönlich 3</metadata>
+    <metadata label="Erscheinungsjahr" type="WmaPublicationYear">2011</metadata>
+    <metadata label="Titel" type="TitleDocMain">Studie über Bilder in Werbung und Marktforschung</metadata>
+    <metadata label="Beschreibung" type="WmsDescription">Die vorliegende Arbeit besteht aus einem theoretischen und einem empirischen Teil.</metadata>
+    <metadata label="Forschungsbereich" type="WmsResearchArea">Bilder</metadata>
+    <metadata label="Forschungsbereich" type="WmsResearchArea">Werbewirkungsforschung</metadata>
+    <metadata label="Zusatz oder Bemerkungen" type="WmsSupplementComment">keine Bemerkungen</metadata>
+    <metadata label="Language" type="DocLanguage">ger</metadata>
+    <metadata label="Sammlung" type="singleDigCollection">Markenstudien</metadata>
+    
+    <!-- persons -->
+    <person label="Autor" role="Author" firstname="Peter" lastname="Müller" authority="gnd" authorityURI="http://d-nb.info/gnd/" valueURI="123456" />
+  
+    <!-- corporates -->
+    <corporate authority="gnd" authorityURI="http://d-nb.info/gnd/" valueURI="112233445566" role="CorporateArtist" name="Universität Göttingen">
+      <subname>Institut für Informatik</subname>
+      <subname>Lehrstuhl für Softwareentwicklung</subname>
+      <partname>Haus 3</partname>
+    </corporate>
+
+    <!-- groups -->
+    <group label="Linked Doc Group" type="WmaLinkedDocGroup">
+      
+      <!-- metadata in group -->
+      <metadata label="Titel" type="WmaLinkedDocTitle" authority="gnd" authorityURI="http://d-nb.info/gnd/" valueURI="13245768">Linked Document</metadata>
+      <metadata label="Methode" type="WmaLinkedDocResearchMethod">Linked Research Method</metadata>
+      
+      <!-- persons in group -->
+      <person label="Autor" role="Author" firstname="Max" lastname="Mustermann" authority="gnd" authorityURI="http://d-nb.info/gnd/" valueURI="998877665544" />
+
+      <!-- corporates in group -->
+      <corporate authority="gnd" authorityURI="http://d-nb.info/gnd/" valueURI="112233445566" role="CorporateArtist" name="Universität Göttingen">
+        <subname>Institut für Biologie</subname>
+        <partname>Haus 1</partname>
+      </corporate>
+
+      <!-- groups in group -->
+      <group label="Linked Doc Group" type="WmaLinkedDocGroup">
+        <metadata label="Titel" type="WmaLinkedDocTitle" authority="gnd" authorityURI="http://d-nb.info/gnd/" valueURI="114017276X">Titel2</metadata>
+        <metadata label="Methode" type="WmaLinkedDocResearchMethod">Second Research Method</metadata>
+        <person label="Autor" role="Author" firstname="Monika" lastname="Wunderland" authority="gnd" authorityURI="http://d-nb.info/gnd/" valueURI="888777666" />
+
+        <corporate authority="gnd" authorityURI="http://d-nb.info/gnd/" valueURI="112233445566" role="CorporateArtist" name="Universität Göttingen">
+          <subname>Institut für Mathematik</subname>
+          <partname>Haus 4</partname>
+        </corporate>
+      </group>
+
+    </group>
+  </data>
+
+  <!-- data pro Goobi process -->
+  <process>
+    <!-- process title -->
+    <title>doc_id_199</title>
+
+    <!-- properties to add -->
+	<property name="Font type">Antiqua</property>
+    <property name="Resolution">400 dpi</property>
+
+    <!-- message for the journal (debug|info|warn|error|user|important ...) -->
+    <journal type="info" creator="-automatic-">Import über Massenimport-Plugin</journal>
+    <journal type="debug" creator="-automatic-">Bildkonvertierung fehlgeschlagen</journal>
+
+    <!-- content files for specific target folder (master|main|source ...)-->
+    <content folder="master">/opt/digiverso/import/docs/199/Dokument.docx</content>
+    <content folder="media">/opt/digiverso/import/docs/199/Dokument01.tif</content>
+    <content folder="media">/opt/digiverso/import/docs/199/Dokument02.tif</content>
+    <content folder="media">/opt/digiverso/import/docs/199/Dokument03.tif</content>
+  </process>
+</goobi-import>
