@@ -34,7 +34,7 @@
             font-weight: bold;
             }
 
-            .logs {
+        .logs {
             border: 1px solid #ddd;
             display: block;
             margin-top: 20px;
@@ -80,6 +80,14 @@
                                         </span>
                                     </div>
                                 </h:panelGroup>
+                                <ui:fragment rendered="#{NavigationForm.workflowPlugin.errors > 0}">
+                                    <div class="alert alert-danger mt-3" role="alert">
+                                      <div>
+                                        <h:outputText value="#{msgs.ProcessCreationError_mets_save_error} (#{msgs.count}: #{NavigationForm.workflowPlugin.errors})"/>
+                                      </div>
+                                    </div>
+                                </ui:fragment>
+                                
                                 <!-- // progress bar -->
                             </section:body>
                             <section:footer>

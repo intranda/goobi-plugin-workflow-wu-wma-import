@@ -11,6 +11,7 @@ import java.util.Queue;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.commons.configuration.HierarchicalConfiguration;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.goobi.beans.JournalEntry;
 import org.goobi.beans.JournalEntry.EntryType;
 import org.goobi.beans.Process;
@@ -83,6 +84,8 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
     int itemsTotal = 0;
     @Getter
     private Queue<LogMessage> logQueue = new CircularFifoQueue<LogMessage>(50000);
+    @Getter
+    private int errors = 0;
 
     private String workflow;
 
@@ -111,6 +114,8 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
      */
     private void readConfiguration() {
         updateLog("Start reading the configuration");
+
+        errors = 0;
 
         // set specific title
         title = ConfigPlugins.getPluginConfig(id).getString("title");
@@ -274,9 +279,11 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                             updateLog("Process successfully created with ID: " + process.getId());
 
                         } catch (Exception e) {
-                            log.error("Error while creating a process during the import", e);
-                            updateLog("Error while creating a process during the import: " + e.getMessage(), 3);
-                            Helper.setFehlerMeldung("Error while creating a process during the import: " + e.getMessage());
+                            log.error("Error while creating a process during the import for file " + file.getAbsolutePath(), e);
+                            updateLog("Error while creating a process during the import for file " + file.getAbsolutePath() + ": " + e.getMessage(),
+                                    3);
+                            Helper.setFehlerMeldung(
+                                    "Error while creating a process during the import for file " + file.getAbsolutePath() + ": " + e.getMessage());
                             pusher.send("error");
                         }
 
@@ -311,9 +318,9 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
      * @throws MetadataTypeNotAllowedException
      */
     private Corporate getCorporate(Prefs prefs, SimpleCorporate sc) throws MetadataTypeNotAllowedException {
-        MetadataType mdt = prefs.getMetadataTypeByName(sc.getRole());
+        MetadataType mdt = prefs.getMetadataTypeByName(sc.getRole().trim());
         if (mdt == null) {
-            updateLog("The metadata type with name '" + sc.getRole()
+            updateLog("The metadata type with name '" + sc.getRole().trim()
                     + "' does not exist within the ruleset.", 3);
         }
         Corporate c = new Corporate(mdt);
@@ -337,13 +344,17 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
      * @throws MetadataTypeNotAllowedException
      */
     private Metadata getMetadata(Prefs prefs, SimpleMetadata sm) throws MetadataTypeNotAllowedException {
-        MetadataType mdt = prefs.getMetadataTypeByName(sm.getType());
+        MetadataType mdt = prefs.getMetadataTypeByName(sm.getType().trim());
         if (mdt == null) {
-            updateLog("The metadata type with name '" + sm.getType()
+            updateLog("The metadata type with name '" + sm.getType().trim()
                     + "' does not exist within the ruleset.", 3);
         }
+        if (StringUtils.isBlank(sm.getValue())) {
+            updateLog("The metadata of type '" + sm.getType().trim()
+                    + "' is empty.", 3);
+        }
         Metadata m = new Metadata(mdt);
-        m.setValue(sm.getValue());
+        m.setValue(sm.getValue().trim());
         m.setAuthorityFile(sm.getAuthority(), sm.getAuthorityURI(), sm.getValueURI());
         return m;
     }
@@ -357,9 +368,9 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
      * @throws MetadataTypeNotAllowedException
      */
     private Person getPerson(Prefs prefs, SimplePerson sp) throws MetadataTypeNotAllowedException {
-        MetadataType mdt = prefs.getMetadataTypeByName(sp.getRole());
+        MetadataType mdt = prefs.getMetadataTypeByName(sp.getRole().trim());
         if (mdt == null) {
-            updateLog("The metadata type with name '" + sp.getRole()
+            updateLog("The metadata type with name '" + sp.getRole().trim()
                     + "' does not exist within the ruleset.", 3);
         }
         Person p = new Person(mdt);
@@ -378,9 +389,9 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
      * @throws MetadataTypeNotAllowedException
      */
     private MetadataGroup getGroup(Prefs prefs, SimpleGroup sg) throws MetadataTypeNotAllowedException {
-        MetadataGroupType mdt = prefs.getMetadataGroupTypeByName(sg.getType());
+        MetadataGroupType mdt = prefs.getMetadataGroupTypeByName(sg.getType().trim());
         if (mdt == null) {
-            updateLog("The metadata group type with name '" + sg.getType()
+            updateLog("The metadata group type with name '" + sg.getType().trim()
                     + "' does not exist within the ruleset.", 3);
         }
         MetadataGroup group = new MetadataGroup(mdt);
@@ -391,9 +402,9 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
         }
 
         // create all corporates
-        //        for (SimpleCorporate sc : sg.getCorporates()) {
-        //            group.addCorporate(getCorporate(prefs, sc));
-        //        }
+        for (SimpleCorporate sc : sg.getCorporates()) {
+            group.addCorporate(getCorporate(prefs, sc));
+        }
 
         // create all metadata groups
         for (SimpleGroup ssg : sg.getGroups()) {
@@ -428,6 +439,10 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
      * @param logmessage
      */
     private void updateLog(String logmessage, int level) {
+        if (level > 1) {
+            errors++;
+        }
+
         logQueue.add(new LogMessage(logmessage, level));
         log.debug(logmessage);
         if (pusher != null && System.currentTimeMillis() - lastPush > 500) {
