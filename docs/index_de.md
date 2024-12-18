@@ -47,6 +47,5 @@ Die folgende Tabelle enthält eine Zusammenstellung der Parameter und ihrer Besc
 Parameter               | Erläuterung
 ------------------------|------------------------------------
 `title`                 | Hier kann ein individueller Titel für die Anzeige im Menü und die Überschriften des Plugins festgelegt werden.
-`importSet`             | Mit diesem Element lassen sich individuelle Importsets definieren. Sie bestehen jeweils aus einem `title` für den anzuzeigenden Namen, sowie einer Angabe für den Speicherort, von dem die Daten importiert werden sollen. Der Speicherort kann dabei beliebig tiefe Verzeichnisstrukturen aufweisen.
-`workflow`              | Hiermit läßt sich festlegen, welche Produktionsvorlage für das Anlegen von Goobi-Vorgängen verwendet werden soll.
+`importSet`             | Mit diesem Element lassen sich individuelle Importsets definieren. Sie bestehen jeweils aus einem `title` für den anzuzeigenden Namen, sowie einer Angabe für den Speicherort, von dem die Daten importiert werden sollen. Der Speicherort kann dabei beliebig tiefe Verzeichnisstrukturen aufweisen. Ausserdem läßt sich mit `workflow` festlegen, welche Produktionsvorlage für das Anlegen von Goobi-Vorgängen verwendet werden soll.
 

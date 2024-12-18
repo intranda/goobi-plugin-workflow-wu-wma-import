@@ -87,8 +87,6 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
     @Getter
     private int errors = 0;
 
-    private String workflow;
-
     @Override
     public PluginType getType() {
         return PluginType.Workflow;
@@ -120,16 +118,14 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
         // set specific title
         title = ConfigPlugins.getPluginConfig(id).getString("title");
 
-        // read some main configuration
-        workflow = ConfigPlugins.getPluginConfig(id).getString("workflow");
-
         // read list of mapping configuration
         importSets = new ArrayList<ImportSet>();
         List<HierarchicalConfiguration> mappings = ConfigPlugins.getPluginConfig(id).configurationsAt("importSet");
         for (HierarchicalConfiguration node : mappings) {
             String settitle = node.getString("[@title]", "-");
             String source = node.getString("[@source]", "-");
-            importSets.add(new ImportSet(settitle, source));
+            String workflow = node.getString("[@workflow]", "-");
+            importSets.add(new ImportSet(settitle, source, workflow));
         }
 
         // write a log into the UI
@@ -180,7 +176,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                             updateLog("Start importing: Record " + (itemCurrent + 1), 1);
 
                             // get the correct workflow to use
-                            Process template = ProcessManager.getProcessByExactTitle(workflow);
+                            Process template = ProcessManager.getProcessByExactTitle(importset.getWorkflow());
                             Prefs prefs = template.getRegelsatz().getPreferences();
 
                             // create digital document
@@ -255,6 +251,16 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 
                             for (SimpleContent con : sio.getProcess().getContents()) {
                                 String targetBase = process.getConfiguredImageFolder(con.getFolder().trim());
+
+                                // get the source folder
+                                if (targetBase == null && "source".equals(con.getFolder().trim())) {
+                                    targetBase = process.getSourceDirectory();
+                                }
+
+                                // get the import folder
+                                if (targetBase == null && "import".equals(con.getFolder().trim())) {
+                                    targetBase = process.getImportDirectory();
+                                }
 
                                 // if the target folder cannot be found
                                 if (targetBase == null) {
@@ -456,6 +462,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
     public class ImportSet {
         private String title;
         private String source;
+        private String workflow;
     }
 
     @Data

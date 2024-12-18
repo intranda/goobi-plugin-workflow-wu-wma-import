@@ -48,5 +48,4 @@ The following table contains a summary of the parameters and their descriptions:
 Parameter               | Explanation
 ------------------------|------------------------------------
 `title`                 | An individual title for the display in the menu and the headings of the plugin can be defined here.
-`importSet`             | Individual import sets can be defined with this element. They each consist of a `title` for the name to be displayed and a specification for the storage location from which the data is to be imported. The storage location can have any depth of directory structure.
-`workflow`              | This allows you to specify which production template is to be used for creating Goobi processes.
+`importSet`             | Individual import sets can be defined with this element. They each consist of a `title` for the name to be displayed and a specification for the storage location from which the data is to be imported. The storage location can have any depth of directory structure. You can also use `workflow` to specify which production template is to be used for creating Goobi processes.
