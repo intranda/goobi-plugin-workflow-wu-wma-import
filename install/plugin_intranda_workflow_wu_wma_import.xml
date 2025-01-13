@@ -3,12 +3,9 @@
 	<title>Mass import for the WU</title>
 
 	<!-- importsets with source folder definition -->
-	<importSet title="Markenstudien 1" source="/opt/digiverso/import/markenstudien01/" />
-	<importSet title="Markenstudien 2" source="/opt/digiverso/import/markenstudien02/" />
-	<importSet title="Markenstudien 3" source="/opt/digiverso/import/markenstudien03/" />
-	<importSet title="Markenstudien 4" source="/opt/digiverso/import/markenstudien04/" />
-	
-	<!-- which workflow to use -->
-	<workflow>Sample_Workflow</workflow>
-		
+	<importSet title="Markenstudien 1" workflow="Marken-Workflow" source="/opt/digiverso/import/markenstudien01/" />
+	<importSet title="Markenstudien 2" workflow="Marken-Workflow" source="/opt/digiverso/import/markenstudien02/" />
+	<importSet title="Markenstudien 3" workflow="Marken-Workflow" source="/opt/digiverso/import/markenstudien03/" />
+	<importSet title="Markenstudien 4" workflow="Marken-Workflow" source="/opt/digiverso/import/markenstudien04/" />
+			
 </config_plugin>
