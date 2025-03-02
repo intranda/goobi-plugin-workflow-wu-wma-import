@@ -65,6 +65,8 @@ import ugh.fileformats.mets.MetsMods;
 @Log4j2
 public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 
+    private static final long serialVersionUID = 7807903481239517297L;
+
     @Getter
     private String id = "intranda_workflow_wu_wma_import";
 
@@ -72,7 +74,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
     private String title = "intranda_workflow_wu_wma_import";
     private long lastPush = System.currentTimeMillis();
     @Getter
-    private List<ImportSet> importSets;
+    private transient List<ImportSet> importSets;
     private PushContext pusher;
     @Getter
     private boolean run = false;
@@ -83,7 +85,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
     @Getter
     int itemsTotal = 0;
     @Getter
-    private Queue<LogMessage> logQueue = new CircularFifoQueue<LogMessage>(50000);
+    private transient Queue<LogMessage> logQueue = new CircularFifoQueue<>(50000);
     @Getter
     private int errors = 0;
 
@@ -119,7 +121,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
         title = ConfigPlugins.getPluginConfig(id).getString("title");
 
         // read list of mapping configuration
-        importSets = new ArrayList<ImportSet>();
+        importSets = new ArrayList<>();
         List<HierarchicalConfiguration> mappings = ConfigPlugins.getPluginConfig(id).configurationsAt("importSet");
         for (HierarchicalConfiguration node : mappings) {
             String settitle = node.getString("[@title]", "-");
@@ -160,7 +162,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                 // run through all goobi.xml files in the given folder
                 String[] extensions = { "goobi.xml" };
                 Collection<File> files = FileUtils.listFiles(new File(importset.source), extensions, true);
-                files.removeIf(file -> file.isHidden());
+                files.removeIf(File::isHidden);
                 itemsTotal = files.size();
                 itemCurrent = 0;
 
@@ -333,7 +335,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
         c.setMainName(sc.getName());
         c.setAuthorityFile(sc.getAuthority(), sc.getAuthorityURI(), sc.getValueURI());
         c.setPartName(sc.getPartname());
-        List<NamePart> subnames = new ArrayList<NamePart>();
+        List<NamePart> subnames = new ArrayList<>();
         for (String s : sc.getSubnames()) {
             subnames.add(new NamePart(s, s));
         }
