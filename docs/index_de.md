@@ -44,8 +44,9 @@ Die Konfiguration des Plugins erfolgt in der Datei `plugin_intranda_workflow_wu_
 
 Die folgende Tabelle enthält eine Zusammenstellung der Parameter und ihrer Beschreibungen:
 
-Parameter               | Erläuterung
-------------------------|------------------------------------
-`title`                 | Hier kann ein individueller Titel für die Anzeige im Menü und die Überschriften des Plugins festgelegt werden.
-`importSet`             | Mit diesem Element lassen sich individuelle Importsets definieren. Sie bestehen jeweils aus einem `title` für den anzuzeigenden Namen, sowie einer Angabe für den Speicherort, von dem die Daten importiert werden sollen. Der Speicherort kann dabei beliebig tiefe Verzeichnisstrukturen aufweisen. Ausserdem läßt sich mit `workflow` festlegen, welche Produktionsvorlage für das Anlegen von Goobi-Vorgängen verwendet werden soll.
+Parameter   | Erläuterung
+------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+`title`     | Hier kann ein individueller Titel für die Anzeige im Menü und die Überschriften des Plugins festgelegt werden.
+`cleanup`   | Mit diesem Parameter kann festgelegt werden, ob diejenigen Daten, die importiert wurden, aus dem Quellverzeichnis (dem jeweiligen `Importset`) gelöscht werden sollen. Fehlt der Parameter, ist der Standardwert `false`.
+`importSet` | Mit diesem Element lassen sich individuelle Importsets definieren. Sie bestehen jeweils aus einem `title` für den anzuzeigenden Namen, sowie einer Angabe für den Speicherort, von dem die Daten importiert werden sollen. Der Speicherort kann dabei beliebig tiefe Verzeichnisstrukturen aufweisen. Ausserdem läßt sich mit `workflow` festlegen, welche Produktionsvorlage für das Anlegen von Goobi-Vorgängen verwendet werden soll.
 

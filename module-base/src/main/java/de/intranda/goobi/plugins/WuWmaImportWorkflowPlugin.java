@@ -75,6 +75,8 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 
     @Getter
     private String title = "intranda_workflow_wu_wma_import";
+    
+    private boolean cleanup = false;
     private long lastPush = System.currentTimeMillis();
     @Getter
     private transient List<ImportSet> importSets;
@@ -123,6 +125,9 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
         // set specific title
         title = ConfigPlugins.getPluginConfig(id).getString("title");
 
+        // check if content shall be cleaned up after successfull import
+        cleanup = ConfigPlugins.getPluginConfig(id).getBoolean("cleanup", false);
+        
         // read list of mapping configuration
         importSets = new ArrayList<>();
         List<HierarchicalConfiguration> mappings = ConfigPlugins.getPluginConfig(id).configurationsAt("importSet");
@@ -329,6 +334,19 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                                     myThread.startOrPutToQueue();
                                 }
                             }
+                            
+                            // if the files shall be cleaned up in the source folder, do it now for all successful processes
+                            if (cleanup) {
+                            	StorageProvider.getInstance().deleteFile(Paths.get(file.getAbsolutePath()));
+                            	for (SimpleContent con : sio.getProcess().getContents()) {
+	                                File contentfile = new File(con.getSource());
+	                                if (contentfile.canWrite()) {
+	                                	StorageProvider.getInstance().deleteFile(Paths.get(contentfile.getAbsolutePath()));
+	                                }
+	                            }
+                            }
+                            
+                            
                             updateLog("Process successfully created with ID: " + process.getId());
 
                         } catch (Exception e) {
