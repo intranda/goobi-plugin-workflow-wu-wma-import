@@ -12,12 +12,14 @@ import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.commons.configuration.HierarchicalConfiguration;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.goobi.beans.Batch;
 import org.goobi.beans.JournalEntry;
 import org.goobi.beans.JournalEntry.EntryType;
 import org.goobi.beans.Process;
 import org.goobi.beans.Step;
 import org.goobi.production.enums.LogType;
 import org.goobi.production.enums.PluginType;
+import org.goobi.production.flow.statistics.hibernate.FilterHelper;
 import org.goobi.production.plugin.interfaces.IPushPlugin;
 import org.goobi.production.plugin.interfaces.IWorkflowPlugin;
 import org.omnifaces.cdi.PushContext;
@@ -29,6 +31,7 @@ import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.BeanHelper;
 import de.sub.goobi.helper.Helper;
+import de.sub.goobi.helper.HelperSchritte;
 import de.sub.goobi.helper.ScriptThreadWithoutHibernate;
 import de.sub.goobi.helper.StorageProvider;
 import de.sub.goobi.helper.enums.StepStatus;
@@ -72,6 +75,8 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 
     @Getter
     private String title = "intranda_workflow_wu_wma_import";
+    
+    private boolean cleanup = false;
     private long lastPush = System.currentTimeMillis();
     @Getter
     private transient List<ImportSet> importSets;
@@ -120,6 +125,9 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
         // set specific title
         title = ConfigPlugins.getPluginConfig(id).getString("title");
 
+        // check if content shall be cleaned up after successfull import
+        cleanup = ConfigPlugins.getPluginConfig(id).getBoolean("cleanup", false);
+        
         // read list of mapping configuration
         importSets = new ArrayList<>();
         List<HierarchicalConfiguration> mappings = ConfigPlugins.getPluginConfig(id).configurationsAt("importSet");
@@ -246,8 +254,34 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                                 bhelp.EigenschaftHinzufuegen(process, spr.getName(), spr.getValue());
                             }
 
+                            // if process shall be added to batch, find it out to add it
+                            String batchName = sio.getProcess().getBatch();
+                            if (StringUtils.isNotBlank(batchName)) {
+                            	List<Batch> allBatches = ProcessManager
+                                        .getBatches(5000);
+                                Batch myBatch = null;
+                            	for (Batch b : allBatches) {
+									// if batch exists, reuse it
+                                	if (b.getBatchName().equals(batchName)) {
+										myBatch = b;
+										break;
+									}
+								}
+                            	
+                            	// if no matching batch was found, create one now
+                            	if (myBatch == null) {
+                            		Batch newBatch = new Batch();
+                                    newBatch.setBatchName(batchName);
+                                    process.setBatch(newBatch);
+                            	} else {
+                            		process.setBatch(myBatch);
+                            	}
+                            	
+                            }
+                            
+                            // save the process
                             ProcessManager.saveProcess(process);
-
+                            
                             // if media files are given, import these into the media folder of the process
                             updateLog("Start copying media files");
 
@@ -277,6 +311,22 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                                 }
                             }
 
+                            // update database information for process
+                            Step st = process.getAktuellerSchritt();
+                            HelperSchritte.updateMetadataIndex(st);
+                            try {
+                                int numberOfFiles = StorageProvider.getInstance().getNumberOfFiles(Paths.get(process.getImagesOrigDirectory(true)));
+                                if (numberOfFiles == 0) {
+                                    numberOfFiles = StorageProvider.getInstance().getNumberOfFiles(Paths.get(process.getImagesTifDirectory(true)));
+                                }
+                                if (numberOfFiles > 0 && process.getSortHelperImages() != numberOfFiles) {
+                                    ProcessManager.updateImages(numberOfFiles, process.getId());
+                                }
+                            } catch (Exception e) {
+                                log.error("An exception occurred while closing a step for process with ID " + process.getId(), e);
+                            }
+                            
+                            
                             // start any open automatic tasks for the created process
                             for (Step s : process.getSchritteList()) {
                                 if (StepStatus.OPEN.equals(s.getBearbeitungsstatusEnum()) && s.isTypAutomatisch()) {
@@ -284,6 +334,19 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                                     myThread.startOrPutToQueue();
                                 }
                             }
+                            
+                            // if the files shall be cleaned up in the source folder, do it now for all successful processes
+                            if (cleanup) {
+                            	StorageProvider.getInstance().deleteFile(Paths.get(file.getAbsolutePath()));
+                            	for (SimpleContent con : sio.getProcess().getContents()) {
+	                                File contentfile = new File(con.getSource());
+	                                if (contentfile.canWrite()) {
+	                                	StorageProvider.getInstance().deleteFile(Paths.get(contentfile.getAbsolutePath()));
+	                                }
+	                            }
+                            }
+                            
+                            
                             updateLog("Process successfully created with ID: " + process.getId());
 
                         } catch (Exception e) {

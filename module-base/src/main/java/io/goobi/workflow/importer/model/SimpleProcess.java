@@ -14,6 +14,7 @@ import lombok.Setter;
 public class SimpleProcess {
 
     private String title;
+    private String batch;
 
     @JacksonXmlProperty(localName = "property")
     @JacksonXmlElementWrapper(useWrapping = false)
