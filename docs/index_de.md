@@ -3,6 +3,10 @@ title: Massenimport für Markenstudien und Werbemittel
 identifier: intranda_workflow_wu_wma_import
 description: Workflow Plugin für den Import von Markenstudien und Werbemitteln an der WU Wien
 published: true
+keywords:
+    - Goobi workflow
+    - Plugin
+    - Workflow Plugin
 ---
 
 ## Einführung
