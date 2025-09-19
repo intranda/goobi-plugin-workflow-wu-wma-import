@@ -158,8 +158,9 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
         updateLog("Start import for: " + importset.getTitle());
         progress = 0;
         BeanHelper bhelp = new BeanHelper();
-        ObjectMapper om = new XmlMapper();
-
+        //ObjectMapper om = new XmlMapper();
+        XmlMapper om = new XmlMapper();
+        
         // run the import in a separate thread to allow a dynamic progress bar
         run = true;
         Runnable runnable = () -> {
@@ -202,7 +203,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                             physical.addMetadata(mdForPath);
 
                             // read the xml file
-                            SimpleImportObject sio = om.readValue(file, SimpleImportObject.class);
+                            SimpleImportObject sio = GoobiXmlReader.readReordered(file, om);
 
                             // add the logical basics
                             DocStruct logical = dd.createDocStruct(prefs.getDocStrctTypeByName(sio.getData().getType()));
