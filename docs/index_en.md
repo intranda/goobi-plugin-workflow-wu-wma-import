@@ -3,6 +3,10 @@ title: Mass import for brand studies and advertising material
 identifier: intranda_workflow_wu_wma_import
 description: Workflow plugin for the import of brand studies and advertising material at WU Vienna
 published: true
+keywords:
+    - Goobi workflow
+    - Plugin
+    - Workflow Plugin
 ---
 
 ## Introduction
