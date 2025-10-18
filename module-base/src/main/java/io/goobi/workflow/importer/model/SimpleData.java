@@ -15,6 +15,10 @@ import lombok.Setter;
 @Setter
 public class SimpleData {
 
+    @JacksonXmlProperty(localName = "data")
+    @JacksonXmlElementWrapper(useWrapping = false)
+    private List<SimpleData> data = new ArrayList<SimpleData>();
+    
     @JacksonXmlProperty(localName = "metadata")
     @JacksonXmlElementWrapper(useWrapping = false)
     private List<SimpleMetadata> metadatas = new ArrayList<SimpleMetadata>();
@@ -31,6 +35,10 @@ public class SimpleData {
     @JacksonXmlElementWrapper(useWrapping = false)
     private List<SimpleGroup> groups = new ArrayList<SimpleGroup>();
 
+    @JacksonXmlProperty(localName = "content")
+    @JacksonXmlElementWrapper(useWrapping = false)
+    private List<SimpleContent> contents = new ArrayList<SimpleContent>();
+    
     @JacksonXmlProperty(isAttribute = true)
     private String type;
 
