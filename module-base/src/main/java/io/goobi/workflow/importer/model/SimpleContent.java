@@ -12,6 +12,9 @@ public class SimpleContent {
 
     @JacksonXmlProperty(isAttribute = true)
     private String folder;
+    
+    @JacksonXmlProperty(isAttribute = true)
+    private String label;
 
     @JacksonXmlText
     private String source;
