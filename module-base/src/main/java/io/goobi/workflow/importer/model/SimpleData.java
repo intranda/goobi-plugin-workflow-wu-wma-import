@@ -83,4 +83,13 @@ public class SimpleData {
     public void add(SimpleGroup g) {
         groups.add(g);
     }
+    
+    /**
+     * add a {@link SimpleData}
+     *
+     * @param c
+     */
+    public void add(SimpleContent c) {
+    	contents.add(c);
+    }
 }
