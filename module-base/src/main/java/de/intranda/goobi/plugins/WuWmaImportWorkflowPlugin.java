@@ -32,6 +32,7 @@ import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.BeanHelper;
 import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.HelperSchritte;
+import de.sub.goobi.helper.NIOFileUtils;
 import de.sub.goobi.helper.ScriptThreadWithoutHibernate;
 import de.sub.goobi.helper.StorageProvider;
 import de.sub.goobi.helper.enums.StepStatus;
@@ -50,6 +51,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 import net.xeoh.plugins.base.annotations.PluginImplementation;
+import ugh.dl.ContentFile;
 import ugh.dl.Corporate;
 import ugh.dl.DigitalDocument;
 import ugh.dl.DocStruct;
@@ -240,6 +242,26 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                             String regex = ConfigurationHelper.getInstance().getProcessTitleReplacementRegex();
                             processname = processname.replaceAll(regex, "_").trim();
 
+                            // add all file references
+                            for (SimpleContent con : sio.getData().getContents()) {                                                                
+                                DocStruct dsPage = dd.createDocStruct(prefs.getDocStrctTypeByName("page"));
+								physical.addChild(dsPage);
+								addMetadata("physPageNumber", String.valueOf(physical.getAllChildren().size()),
+										prefs, dsPage);
+								addMetadata("logicalPageNumber", con.getLabel(), prefs, dsPage);
+								logical.addReferenceTo(dsPage, "logical_physical");
+								
+								ContentFile cf = new ContentFile();
+								String sourcePath = con.getSource();
+
+								File f = new File(sourcePath);
+								String mimetype = NIOFileUtils.getMimeTypeFromFile(Paths.get(sourcePath));
+								cf.setMimetype(mimetype);
+
+								cf.setLocation(f.getName());
+								dsPage.addContentFile(cf);
+                            }
+                            
                             // save the process
                             Process process = bhelp.createAndSaveNewProcess(template, processname, fileformat);
 
@@ -537,4 +559,20 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
         private String message;
         private int level = 0;
     }
+    
+    /**
+	 * simple helper to create a regular metadata
+	 * 
+	 * @param type
+	 * @param value
+	 * @param prefs
+	 * @param ds
+	 * @throws MetadataTypeNotAllowedException
+	 */
+	private void addMetadata(String type, String value, Prefs prefs, DocStruct ds)
+			throws MetadataTypeNotAllowedException {
+		Metadata m = new Metadata(prefs.getMetadataTypeByName(type));
+		m.setValue(value);
+		ds.addMetadata(m);
+	}
 }
