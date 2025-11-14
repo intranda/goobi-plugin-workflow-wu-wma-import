@@ -188,6 +188,8 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                         try {
                             updateLog("Start importing: Record " + (itemCurrent + 1), 1);
 
+                            List<SimpleContent> allContentFiles = new ArrayList<SimpleContent>();
+                            
                             // get the correct workflow to use
                             Process template = ProcessManager.getProcessByExactTitle(importset.getWorkflow());
                             Prefs prefs = template.getRegelsatz().getPreferences();
@@ -237,30 +239,31 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                                 logical.addPerson(getPerson(prefs, sp));
                             }
 
+                            // add all file references
+                            for (SimpleContent con : sio.getData().getContents()) {                                                                
+                            	DocStruct dsPage = dd.createDocStruct(prefs.getDocStrctTypeByName("page"));
+                            	physical.addChild(dsPage);
+                            	addMetadata("physPageNumber", String.valueOf(physical.getAllChildren().size()),
+                            			prefs, dsPage);
+                            	addMetadata("logicalPageNumber", con.getLabel(), prefs, dsPage);
+                            	logical.addReferenceTo(dsPage, "logical_physical");
+                            	
+                            	ContentFile cf = new ContentFile();
+                            	String sourcePath = con.getSource();
+                            	
+                            	File f = new File(sourcePath);
+                            	String mimetype = NIOFileUtils.getMimeTypeFromFile(Paths.get(sourcePath));
+                            	cf.setMimetype(mimetype);
+                            	
+                            	cf.setLocation(f.getName());
+                            	dsPage.addContentFile(cf);
+                            	allContentFiles.add(con);
+                            }
+
                             // get process title
                             String processname = sio.getProcess().getTitle();
                             String regex = ConfigurationHelper.getInstance().getProcessTitleReplacementRegex();
                             processname = processname.replaceAll(regex, "_").trim();
-
-                            // add all file references
-                            for (SimpleContent con : sio.getData().getContents()) {                                                                
-                                DocStruct dsPage = dd.createDocStruct(prefs.getDocStrctTypeByName("page"));
-								physical.addChild(dsPage);
-								addMetadata("physPageNumber", String.valueOf(physical.getAllChildren().size()),
-										prefs, dsPage);
-								addMetadata("logicalPageNumber", con.getLabel(), prefs, dsPage);
-								logical.addReferenceTo(dsPage, "logical_physical");
-								
-								ContentFile cf = new ContentFile();
-								String sourcePath = con.getSource();
-
-								File f = new File(sourcePath);
-								String mimetype = NIOFileUtils.getMimeTypeFromFile(Paths.get(sourcePath));
-								cf.setMimetype(mimetype);
-
-								cf.setLocation(f.getName());
-								dsPage.addContentFile(cf);
-                            }
                             
                             // save the process
                             Process process = bhelp.createAndSaveNewProcess(template, processname, fileformat);
@@ -308,7 +311,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                             // if media files are given, import these into the media folder of the process
                             updateLog("Start copying media files");
 
-                            for (SimpleContent con : sio.getData().getContents()) {
+                            for (SimpleContent con : allContentFiles) {
                                 String targetBase = process.getConfiguredImageFolder(con.getFolder().trim());
 
                                 // get the source folder
@@ -370,6 +373,8 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                             }
                             
                             
+                            
+                            fileformat.write(process.getMetadataFilePath());
                             updateLog("Process successfully created with ID: " + process.getId());
 
                         } catch (Exception e) {
