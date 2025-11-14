@@ -286,7 +286,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
                             // if media files are given, import these into the media folder of the process
                             updateLog("Start copying media files");
 
-                            for (SimpleContent con : sio.getProcess().getContents()) {
+                            for (SimpleContent con : sio.getData().getContents()) {
                                 String targetBase = process.getConfiguredImageFolder(con.getFolder().trim());
 
                                 // get the source folder
