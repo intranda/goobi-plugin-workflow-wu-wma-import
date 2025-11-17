@@ -3,7 +3,9 @@ package de.intranda.goobi.plugins;
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Queue;
@@ -11,6 +13,7 @@ import java.util.Queue;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.commons.configuration.HierarchicalConfiguration;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.comparator.NameFileComparator;
 import org.apache.commons.lang3.StringUtils;
 import org.goobi.beans.Batch;
 import org.goobi.beans.JournalEntry;
@@ -177,11 +180,15 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 				updateLog("Run through all import files");
 				// run through all goobi.xml files in the given folder
 				String[] extensions = { "goobi.xml" };
-				Collection<File> files = FileUtils.listFiles(new File(importset.source), extensions, true);
-				files.removeIf(File::isHidden);
+				Collection<File> fileCollection = FileUtils.listFiles(new File(importset.source), extensions, true);
+				fileCollection.removeIf(File::isHidden);
+
+			    List<File> files = new ArrayList<>(fileCollection);
+			    files.sort(NameFileComparator.NAME_INSENSITIVE_COMPARATOR);
+				
 				itemsTotal = files.size();
 				itemCurrent = 0;
-
+				
 				for (File file : files) {
 					// little delay
 					Thread.sleep(100);
