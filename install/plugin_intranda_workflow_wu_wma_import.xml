@@ -3,7 +3,9 @@
 	<title>Mass import for the WU</title>
 	
 	<!-- cleanup the import folder from processes and media files that could be imported successfully -->
-	<cleanup>true</cleanup>
+	<cleanup>false</cleanup>
+	<!-- assign the content files to the structure element-->
+	<assignPages>true</assignPages>
 
 	<!-- importsets with source folder definition -->
 	<importSet title="Markenstudien 1" workflow="Marken-Workflow" source="/opt/digiverso/import/markenstudien01/" />

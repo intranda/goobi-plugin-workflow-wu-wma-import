@@ -82,6 +82,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 	private String title = "intranda_workflow_wu_wma_import";
 
 	private boolean cleanup = false;
+	private boolean assignPages = true;
 	private long lastPush = System.currentTimeMillis();
 	@Getter
 	private transient List<ImportSet> importSets;
@@ -132,6 +133,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 
 		// check if content shall be cleaned up after successfull import
 		cleanup = ConfigPlugins.getPluginConfig(id).getBoolean("cleanup", false);
+		assignPages = ConfigPlugins.getPluginConfig(id).getBoolean("assignPages", true);
 
 		// read list of mapping configuration
 		importSets = new ArrayList<>();
@@ -211,7 +213,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 
 							// read the xml file
 							SimpleImportObject sio = GoobiXmlReader.readReordered(file, om);
-							
+
 							// If there are any content values in process, add them to the first data object
 							for(SimpleContent sc : sio.getProcess().getContents()) {
 								sio.getData().add(sc);
@@ -280,7 +282,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 
 							// if media files are given, import these into the media folder of the process
 							updateLog("Start copying media files");
-
+							
 							for (SimpleContent con : allContentFiles) {
 								String targetBase = process.getConfiguredImageFolder(con.getFolder().trim());
 
@@ -398,7 +400,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 	private void createMetadataAndAddFileReferences(List<SimpleContent> allContentFiles, Prefs prefs,
 			DigitalDocument dd, DocStruct physical, SimpleData sd, DocStruct ds)
 			throws MetadataTypeNotAllowedException, TypeNotAllowedForParentException, TypeNotAllowedAsChildException {
-		
+
 		// create all metadata fields
 		for (SimpleMetadata sm : sd.getMetadatas()) {
 			ds.addMetadata(getMetadata(prefs, sm));
@@ -421,30 +423,33 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 
 		// add all file references
 		for (SimpleContent con : sd.getContents()) {
-			DocStruct dsPage = dd.createDocStruct(prefs.getDocStrctTypeByName("page"));
-			physical.addChild(dsPage);
-			addMetadata("physPageNumber", String.valueOf(physical.getAllChildren().size()), prefs, dsPage);
-			addMetadata("logicalPageNumber", con.getLabel(), prefs, dsPage);
-			
-			// Add page to parent object
-			DocStruct currentDs = ds;
-			while (currentDs != null) {
-				currentDs.addReferenceTo(dsPage, "logical_physical");
-				currentDs = currentDs.getParent();
+
+			if (assignPages) {
+				DocStruct dsPage = dd.createDocStruct(prefs.getDocStrctTypeByName("page"));
+				physical.addChild(dsPage);
+				addMetadata("physPageNumber", String.valueOf(physical.getAllChildren().size()), prefs, dsPage);
+				addMetadata("logicalPageNumber", con.getLabel(), prefs, dsPage);
+
+				// Add page to parent object
+				DocStruct currentDs = ds;
+				while (currentDs != null) {
+					currentDs.addReferenceTo(dsPage, "logical_physical");
+					currentDs = currentDs.getParent();
+				}
+
+				ContentFile cf = new ContentFile();
+				String sourcePath = con.getSource();
+
+				File f = new File(sourcePath);
+				String mimetype = NIOFileUtils.getMimeTypeFromFile(Paths.get(sourcePath));
+				cf.setMimetype(mimetype);
+
+				cf.setLocation(f.getName());
+				dsPage.addContentFile(cf);
 			}
-			
-			ContentFile cf = new ContentFile();
-			String sourcePath = con.getSource();
-
-			File f = new File(sourcePath);
-			String mimetype = NIOFileUtils.getMimeTypeFromFile(Paths.get(sourcePath));
-			cf.setMimetype(mimetype);
-
-			cf.setLocation(f.getName());
-			dsPage.addContentFile(cf);
 			allContentFiles.add(con);
 		}
-		
+
 		// Go through all children
 		for (SimpleData sdchild : sd.getData()) {
 			DocStruct dsPage = dd.createDocStruct(prefs.getDocStrctTypeByName(sdchild.getType()));
