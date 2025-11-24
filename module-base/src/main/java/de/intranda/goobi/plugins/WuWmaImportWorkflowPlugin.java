@@ -311,8 +311,14 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 									File contentfile = new File(con.getSource());
 									if (contentfile.canRead()) {
 										StorageProvider.getInstance().createDirectories(Paths.get(targetBase));
+										
+										String originalName = contentfile.getName();
+										String normalizedName = originalName
+											    .replace(' ', '_')
+											    .replaceAll("\\p{Pd}", "_");
+										
 										StorageProvider.getInstance().copyFile(Paths.get(contentfile.getAbsolutePath()),
-												Paths.get(targetBase, contentfile.getName()));
+												Paths.get(targetBase, normalizedName));
 									}
 								}
 							}
@@ -450,8 +456,13 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 				File f = new File(sourcePath);
 				String mimetype = NIOFileUtils.getMimeTypeFromFile(Paths.get(sourcePath));
 				cf.setMimetype(mimetype);
+				
+				String originalName = f.getName();
+				String normalizedName = originalName
+					    .replace(' ', '_')
+					    .replaceAll("\\p{Pd}", "_");
 
-				cf.setLocation(f.getName());
+				cf.setLocation(normalizedName);
 				dsPage.addContentFile(cf);
 			}
 			allContentFiles.add(con);
