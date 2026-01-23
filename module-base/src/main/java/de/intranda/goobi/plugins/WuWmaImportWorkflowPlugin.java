@@ -313,9 +313,10 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 										StorageProvider.getInstance().createDirectories(Paths.get(targetBase));
 										
 										String originalName = contentfile.getName();
-										String normalizedName = originalName
-											    .replace(' ', '_')
-											    .replaceAll("\\p{Pd}", "_");
+										String regexExpression = ConfigurationHelper.getInstance().getProcessTitleReplacementRegex();
+										int dot = originalName.lastIndexOf('.');
+										String normalizedName = originalName.substring(0, dot).replaceAll(regexExpression, "_")
+										                       + originalName.substring(dot);
 										
 										StorageProvider.getInstance().copyFile(Paths.get(contentfile.getAbsolutePath()),
 												Paths.get(targetBase, normalizedName));
@@ -458,9 +459,10 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin {
 				cf.setMimetype(mimetype);
 				
 				String originalName = f.getName();
-				String normalizedName = originalName
-					    .replace(' ', '_')
-					    .replaceAll("\\p{Pd}", "_");
+				String regexExpression = ConfigurationHelper.getInstance().getProcessTitleReplacementRegex();
+				int dot = originalName.lastIndexOf('.');
+				String normalizedName = originalName.substring(0, dot).replaceAll(regexExpression, "_")
+				                       + originalName.substring(dot);
 
 				cf.setLocation(normalizedName);
 				dsPage.addContentFile(cf);
