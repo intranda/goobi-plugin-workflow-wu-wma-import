@@ -6,14 +6,6 @@
     <artifactId>plugin-workflow-wu-wma-import</artifactId>
     <version>26.02-SNAPSHOT</version>
   </parent>
-  <artifactId>plugin-workflow-wu-wma-import-base</artifactId>
+  <artifactId>plugin-workflow-wu-wma-import-lib</artifactId>
   <packaging>jar</packaging>
-  <dependencies>
-    <dependency>
-      <groupId>io.goobi.workflow.plugin</groupId>
-      <artifactId>plugin-workflow-wu-wma-import-lib</artifactId>
-      <version>26.02-SNAPSHOT</version>
-      <scope>compile</scope>
-    </dependency>
-  </dependencies>
 </project>
