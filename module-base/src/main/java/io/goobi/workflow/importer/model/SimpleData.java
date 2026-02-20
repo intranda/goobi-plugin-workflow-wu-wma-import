@@ -41,7 +41,10 @@ public class SimpleData {
     
     @JacksonXmlProperty(isAttribute = true)
     private String type;
-
+    
+    @JacksonXmlProperty(isAttribute = true)
+    private boolean anchor;
+    
     /**
      * Add a {@link SimpleMetadata}
      *

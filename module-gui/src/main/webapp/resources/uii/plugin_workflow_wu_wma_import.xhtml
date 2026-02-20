@@ -56,7 +56,6 @@
                         <section:header
                             icon="plug"
                             title="#{msgs[NavigationForm.workflowPlugin.title]}" />
-                        <div id="formsection">
                         <h:form
                             id="myform"
                         	prependId="false"    
@@ -140,7 +139,6 @@
                                 </button:row>
                             </section:footer>
                         </h:form>
-                        </div>
                     </section:section>
                 </ui:fragment>
             </div>
@@ -162,7 +160,7 @@
 
     <!-- websocket communication -->
     <o:socket channel="workflowPluginPush" scope="session">
-        <f:ajax event="update" render="formsection" />
+        <f:ajax event="update" render="resultProgress" />
         <f:ajax event="update" render="logs" />
         <f:ajax event="error" render="globalMessage" />
     </o:socket>

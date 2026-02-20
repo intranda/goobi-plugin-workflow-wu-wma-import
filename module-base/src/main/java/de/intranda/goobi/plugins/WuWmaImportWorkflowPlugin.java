@@ -284,6 +284,12 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                             // save the process
                             ProcessManager.saveProcess(process);
 
+                            // copy goobi.xml file into source folder
+                            updateLog("Copy goobi.xml file");
+                            StorageProvider.getInstance().createDirectories(Paths.get(process.getSourceDirectory()));
+                            StorageProvider.getInstance().copyFile(Paths.get(file.getAbsolutePath()),
+                                    Paths.get(process.getSourceDirectory(), file.getName()));
+                            
                             // if media files are given, import these into the media folder of the process
                             updateLog("Start copying media files");
 
@@ -307,9 +313,9 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                                 } else {
                                     File contentfile = new File(con.getSource());
                                     if (contentfile.canRead()) {
-                                        StorageProvider.getInstance().createDirectories(Paths.get(targetBase));
-
-                                        String originalName = contentfile.getName();
+                                        
+                                		StorageProvider.getInstance().createDirectories(Paths.get(targetBase, con.getRelativePath()));                                    	
+                                    	String originalName = contentfile.getName();
                                         String regexExpression = ConfigurationHelper.getInstance().getProcessTitleReplacementRegex();
                                         int dot = originalName.lastIndexOf('.');
                                         String normalizedName = originalName.substring(0, dot).replaceAll(regexExpression, "_")
@@ -317,7 +323,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
                                         StorageProvider.getInstance()
                                                 .copyFile(Paths.get(contentfile.getAbsolutePath()),
-                                                        Paths.get(targetBase, normalizedName));
+                                                        Paths.get(targetBase, con.getRelativePath(), normalizedName));
                                     }
                                 }
                             }
