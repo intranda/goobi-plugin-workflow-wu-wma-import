@@ -185,6 +185,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
                 itemsTotal = files.size();
                 itemCurrent = 0;
+                pushUpdate();
 
                 for (File file : files) {
                     // little delay
@@ -384,6 +385,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                     // recalculate progress
                     itemCurrent++;
                     progress = 100 * itemCurrent / itemsTotal;
+                    pushUpdate();
                     updateLog("Processing of record done.");
                 }
 
@@ -617,6 +619,13 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
         logQueue.add(new LogMessage(logmessage, level));
         log.debug(logmessage);
+        pushUpdate();
+    }
+
+    /**
+     * Send push to GUI (throttled to avoid flooding).
+     */
+    private void pushUpdate() {
         if (pusher != null && System.currentTimeMillis() - lastPush > 500) {
             lastPush = System.currentTimeMillis();
             pusher.send("update");
