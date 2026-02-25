@@ -41,7 +41,7 @@ An import for a data set can now be started here on the right-hand side.
 
 Once the import of the data has started, the progress bar shows the progress. Details about the import of the individual data records can be viewed in the log below.
 
-The XML-files used for import must have the suffix “.goobi.xml”.
+The XML-files used for import must have the suffix `.goobi.xml`.
 
 ## Configuration
 The plugin is configured in the file `plugin_intranda_workflow_wu_wma_import.xml` as shown here:
