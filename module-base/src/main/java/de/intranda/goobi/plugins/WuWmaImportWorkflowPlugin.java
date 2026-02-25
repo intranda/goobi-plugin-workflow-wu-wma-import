@@ -158,7 +158,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
     /**
      * main method to start the actual import
      * 
-     * @param importConfiguration
+     * @param importset
      */
     @Override
     public void startImport(IImportSet importset) {
@@ -294,6 +294,9 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                             // if media files are given, import these into the media folder of the process
                             updateLog("Start copying media files");
 
+                            int fileCounter = 1;
+                            String stringFormatSpecifier = "%" + String.format("%02d", (int) Math.log10(Math.abs(allContentFiles.size())) + 1) + "d";
+
                             for (SimpleContent con : allContentFiles) {
                                 String targetBase = process.getConfiguredImageFolder(con.getFolder().trim());
 
@@ -319,7 +322,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                                     	String originalName = contentfile.getName();
                                         String regexExpression = ConfigurationHelper.getInstance().getProcessTitleReplacementRegex();
                                         int dot = originalName.lastIndexOf('.');
-                                        String normalizedName = originalName.substring(0, dot).replaceAll(regexExpression, "_")
+                                        String normalizedName = String.format(stringFormatSpecifier, fileCounter++) + "_" + originalName.substring(0, dot).replaceAll(regexExpression, "_")
                                                 + originalName.substring(dot);
 
                                         StorageProvider.getInstance()

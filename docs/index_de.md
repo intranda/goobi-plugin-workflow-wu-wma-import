@@ -41,6 +41,8 @@ Hier kann nun auf der rechten Seite ein Import für ein Datenset gestartet werde
 
 Nach Beginn des Imports der Daten ist ein Fortschritt über den Forschrittsbalken ersichtlich. Details über den Import der einzelnen Datensätze lassen sich im darunter aufgeführten Log einsehen.
 
+Die für den Import genutzen XML-Dateien müssen den suffix `.goobi.xml` haben.
+
 ## Konfiguration
 Die Konfiguration des Plugins erfolgt in der Datei `plugin_intranda_workflow_wu_wma_import.xml` wie hier aufgezeigt:
 
