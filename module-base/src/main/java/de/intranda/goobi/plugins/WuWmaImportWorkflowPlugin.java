@@ -264,7 +264,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                                 Batch myBatch = null;
                                 for (Batch b : allBatches) {
                                     // if batch exists, reuse it
-                                    if (b.getBatchName().equals(batchName)) {
+                                    if (b.getBatchName() != null && b.getBatchName().equals(batchName)) {
                                         myBatch = b;
                                         break;
                                     }
