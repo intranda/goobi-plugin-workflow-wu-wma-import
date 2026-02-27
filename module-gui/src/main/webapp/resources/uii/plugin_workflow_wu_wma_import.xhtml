@@ -62,24 +62,25 @@
                             onkeypress="submitOnEnter(event);">
                             <section:body padding="true">
                                 
-                                <!-- <h:outputText
-                                    value="#{msgs.plugin_intranda_workflow_kick_start_introduction}: #{NavigationForm.workflowPlugin.importFolder}"/> -->
-                                <h:panelGroup
-                                    class="col-sm-8 progress"
-                                    id="resultProgress"
-                                    rendered="#{NavigationForm.workflowPlugin.progress ge 0}">
-                                    <div
-                                        class="progress-bar #{NavigationForm.workflowPlugin.run ? 'progress-bar-striped active' : ''}"
-                                        role="progressbar"
-                                        aria-valuenow="#{NavigationForm.workflowPlugin.progress}"
-                                        aria-valuemin="0"
-                                        aria-valuemax="100"
-                                        style="width:#{NavigationForm.workflowPlugin.progress}%">
-                                        <span>
-                                            <h:outputText
-                                                value="#{NavigationForm.workflowPlugin.itemCurrent} #{msgs.of} #{NavigationForm.workflowPlugin.itemsTotal} - #{NavigationForm.workflowPlugin.progress}%" />
-                                        </span>
-                                    </div>
+                                <!-- Wrapper immer rendern, damit WebSocket-AJAX ein stabiles DOM-Ziel hat -->
+                                <h:panelGroup id="progressContainer" layout="block">
+                                    <h:panelGroup
+                                        class="col-sm-8 progress"
+                                        id="resultProgress"
+                                        rendered="#{NavigationForm.workflowPlugin.progress ge 0}">
+                                        <div
+                                            class="progress-bar #{NavigationForm.workflowPlugin.run ? 'progress-bar-striped active' : ''}"
+                                            role="progressbar"
+                                            aria-valuenow="#{NavigationForm.workflowPlugin.progress}"
+                                            aria-valuemin="0"
+                                            aria-valuemax="100"
+                                            style="width:#{NavigationForm.workflowPlugin.progress}%">
+                                            <span>
+                                                <h:outputText
+                                                    value="#{NavigationForm.workflowPlugin.itemCurrent} #{msgs.of} #{NavigationForm.workflowPlugin.itemsTotal} - #{NavigationForm.workflowPlugin.progress}%" />
+                                            </span>
+                                        </div>
+                                    </h:panelGroup>
                                 </h:panelGroup>
                                 <ui:fragment rendered="#{NavigationForm.workflowPlugin.errors > 0}">
                                     <div class="alert alert-danger mt-3" role="alert">
@@ -138,6 +139,11 @@
                                     <!-- // buttons -->
                                 </button:row>
                             </section:footer>
+                            <!-- WebSocket: in Form, damit @form die Form inkl. Fortschrittsbalken trifft -->
+                            <o:socket channel="workflowPluginPush" scope="session">
+                                <f:ajax event="update" render="@form logs" />
+                                <f:ajax event="error" render="globalMessage" />
+                            </o:socket>
                         </h:form>
                     </section:section>
                 </ui:fragment>
@@ -157,12 +163,4 @@
         </h:panelGroup>
     </h:panelGroup>
     <!-- // log view -->
-
-    <!-- websocket communication -->
-    <o:socket channel="workflowPluginPush" scope="session">
-        <f:ajax event="update" render="myform" />
-        <f:ajax event="update" render="logs" />
-        <f:ajax event="error" render="globalMessage" />
-    </o:socket>
-    <!-- // websocket communication -->
 </ui:composition>

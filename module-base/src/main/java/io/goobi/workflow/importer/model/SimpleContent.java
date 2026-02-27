@@ -14,6 +14,9 @@ public class SimpleContent {
     private String folder;
     
     @JacksonXmlProperty(isAttribute = true)
+    private String relativePath = "";
+    
+    @JacksonXmlProperty(isAttribute = true)
     private String label;
 
     @JacksonXmlText

@@ -6,14 +6,6 @@
     <artifactId>plugin-workflow-wu-wma-import</artifactId>
     <version>26.02</version>
   </parent>
-  <artifactId>plugin-workflow-wu-wma-import-gui</artifactId>
+  <artifactId>plugin-workflow-wu-wma-import-lib</artifactId>
   <packaging>jar</packaging>
-  <build>
-    <resources>
-      <resource>
-        <targetPath>META-INF/resources</targetPath>
-        <directory>src/main/webapp/resources</directory>
-      </resource>
-    </resources>
-  </build>
 </project>
