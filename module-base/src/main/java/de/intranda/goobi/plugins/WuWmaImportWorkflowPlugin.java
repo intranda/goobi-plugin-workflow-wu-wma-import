@@ -157,7 +157,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
     /**
      * main method to start the actual import
-     * 
+     *
      * @param importset
      */
     @Override
@@ -185,7 +185,6 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
                 itemsTotal = files.size();
                 itemCurrent = 0;
-                pushUpdate();
 
                 for (File file : files) {
                     // little delay
@@ -290,7 +289,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                             StorageProvider.getInstance().createDirectories(Paths.get(process.getSourceDirectory()));
                             StorageProvider.getInstance().copyFile(Paths.get(file.getAbsolutePath()),
                                     Paths.get(process.getSourceDirectory(), file.getName()));
-                            
+
                             // if media files are given, import these into the media folder of the process
                             updateLog("Start copying media files");
 
@@ -317,17 +316,21 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                                 } else {
                                     File contentfile = new File(con.getSource());
                                     if (contentfile.canRead()) {
-                                        
-                                		StorageProvider.getInstance().createDirectories(Paths.get(targetBase, con.getRelativePath()));                                    	
+
+                                		StorageProvider.getInstance().createDirectories(Paths.get(targetBase, con.getRelativePath()));
                                     	String originalName = contentfile.getName();
                                         String regexExpression = ConfigurationHelper.getInstance().getProcessTitleReplacementRegex();
                                         int dot = originalName.lastIndexOf('.');
-                                        String normalizedName = String.format(stringFormatSpecifier, fileCounter++) + "_" + originalName.substring(0, dot).replaceAll(regexExpression, "_")
-                                                + originalName.substring(dot);
+                                        String normalizedName =
+                                                String.format(stringFormatSpecifier, fileCounter++) + "_" + originalName.substring(0, dot)
+                                                        .replaceAll(regexExpression, "_")
+                                                        + originalName.substring(dot);
 
                                         StorageProvider.getInstance()
                                                 .copyFile(Paths.get(contentfile.getAbsolutePath()),
                                                         Paths.get(targetBase, con.getRelativePath(), normalizedName));
+                                    } else {
+                                        throw new RuntimeException("No read access to file: '" + contentfile.getAbsolutePath() + "'");
                                     }
                                 }
                             }
@@ -388,7 +391,6 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                     // recalculate progress
                     itemCurrent++;
                     progress = 100 * itemCurrent / itemsTotal;
-                    pushUpdate();
                     updateLog("Processing of record done.");
                 }
 
@@ -622,13 +624,6 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
         logQueue.add(new LogMessage(logmessage, level));
         log.debug(logmessage);
-        pushUpdate();
-    }
-
-    /**
-     * Send push to GUI (throttled to avoid flooding).
-     */
-    private void pushUpdate() {
         if (pusher != null && System.currentTimeMillis() - lastPush > 500) {
             lastPush = System.currentTimeMillis();
             pusher.send("update");
