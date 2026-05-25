@@ -1,9 +1,15 @@
 package de.intranda.goobi.plugins;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Queue;
@@ -223,6 +229,10 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                                 sio.getData().add(sc);
                             }
 
+                            // resolve wildcard content entries (e.g. "/path/to/folder/*" or "/path/*.tif")
+                            // into concrete SimpleContent entries, one per matching file
+                            expandGlobContents(sio.getData());
+
                             // add the logical basics
                             DocStruct logical = dd
                                     .createDocStruct(prefs.getDocStrctTypeByName(sio.getData().getType()));
@@ -410,8 +420,72 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
     }
 
     /**
+     * Recursively walk the SimpleData tree and replace every SimpleContent whose source path uses a
+     * glob in the last path segment (e.g. "/folder/*", "/folder/*.tif", "/folder/img_?.jpg") with one
+     * concrete SimpleContent per matching file. Folder, relativePath and label are copied from the
+     * original entry. Matches are sorted alphabetically by file name for deterministic numbering.
+     * Hidden files and subdirectories are skipped.
+     */
+    private void expandGlobContents(SimpleData sd) {
+        List<SimpleContent> expanded = new ArrayList<>();
+        for (SimpleContent sc : sd.getContents()) {
+            String source = sc.getSource();
+            if (source == null) {
+                expanded.add(sc);
+                continue;
+            }
+            String trimmed = source.trim();
+            Path sourcePath = Paths.get(trimmed);
+            String lastSegment = sourcePath.getFileName() == null ? "" : sourcePath.getFileName().toString();
+            if (!lastSegment.contains("*") && !lastSegment.contains("?")) {
+                expanded.add(sc);
+                continue;
+            }
+
+            Path parent = sourcePath.getParent();
+            if (parent == null || !Files.isDirectory(parent)) {
+                updateLog("Error: Parent folder does not exist for wildcard content '" + source + "'", 3);
+                continue;
+            }
+
+            List<Path> matches = new ArrayList<>();
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(parent, lastSegment)) {
+                for (Path p : stream) {
+                    if (Files.isRegularFile(p) && !Files.isHidden(p)) {
+                        matches.add(p);
+                    }
+                }
+            } catch (IOException e) {
+                updateLog("Error: Could not list wildcard content '" + source + "': " + e.getMessage(), 3);
+                continue;
+            }
+
+            if (matches.isEmpty()) {
+                updateLog("Warning: Wildcard content '" + source + "' did not match any file", 2);
+                continue;
+            }
+
+            Collections.sort(matches, Comparator.comparing(p -> p.getFileName().toString()));
+            for (Path match : matches) {
+                SimpleContent copy = new SimpleContent();
+                copy.setFolder(sc.getFolder());
+                copy.setRelativePath(sc.getRelativePath());
+                copy.setLabel(sc.getLabel());
+                copy.setSource(match.toAbsolutePath().toString());
+                expanded.add(copy);
+            }
+        }
+        sd.getContents().clear();
+        sd.getContents().addAll(expanded);
+
+        for (SimpleData child : sd.getData()) {
+            expandGlobContents(child);
+        }
+    }
+
+    /**
      * Recursive function to add pages and metadata to the logical part
-     * 
+     *
      * @param allContentFiles
      * @param prefs
      * @param dd
