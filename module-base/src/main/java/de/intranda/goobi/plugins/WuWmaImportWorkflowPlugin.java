@@ -12,9 +12,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
-import java.util.Queue;
 
-import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.commons.configuration.HierarchicalConfiguration;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.comparator.NameFileComparator;
@@ -43,6 +41,7 @@ import de.sub.goobi.helper.StorageProvider;
 import de.sub.goobi.helper.enums.StepStatus;
 import de.sub.goobi.persistence.managers.JournalManager;
 import de.sub.goobi.persistence.managers.ProcessManager;
+import io.goobi.workflow.importer.model.LogMessage;
 import io.goobi.workflow.importer.model.SimpleContent;
 import io.goobi.workflow.importer.model.SimpleCorporate;
 import io.goobi.workflow.importer.model.SimpleData;
@@ -52,6 +51,9 @@ import io.goobi.workflow.importer.model.SimpleJournalEntry;
 import io.goobi.workflow.importer.model.SimpleMetadata;
 import io.goobi.workflow.importer.model.SimplePerson;
 import io.goobi.workflow.importer.model.SimpleProperty;
+import io.goobi.workflow.importer.model.WuWmaImportState;
+import jakarta.faces.context.FacesContext;
+import jakarta.servlet.http.HttpSession;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
@@ -88,22 +90,73 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
     private boolean cleanup = false;
     private boolean assignPages = true;
-    private long lastPush = System.currentTimeMillis();
     @Getter
     private transient List<IImportSet> importSets;
     private PushContext pusher;
-    @Getter
-    private boolean run = false;
-    @Getter
-    private int progress = -1;
-    @Getter
-    private int itemCurrent = 0;
-    @Getter
-    int itemsTotal = 0;
-    @Getter
-    private transient Queue<LogMessage> logQueue = new CircularFifoQueue<>(50000);
-    @Getter
-    private int errors = 0;
+
+    /**
+     * Live import state. Held in the HttpSession (via a lib-module type) rather than in instance or
+     * static fields, because Goobi (re)loads this base plugin in a throwaway classloader on every
+     * page entry - see {@link WuWmaImportState} for the full reasoning. Resolved lazily so the
+     * constructor (which also runs during plugin discovery without a FacesContext) does not need a
+     * request. The reference is cached per instance and captured by the import worker thread.
+     */
+    private transient volatile WuWmaImportState state;
+
+    /**
+     * Get the session-scoped import state, resolving and caching it on first use. The get-or-create
+     * is synchronized on the session so that concurrent requests of the same user (e.g. two tabs)
+     * always end up with the one and only state instance stored in the session. Falls back to a
+     * transient, non-shared state when no FacesContext/HttpSession is available (e.g. during plugin
+     * discovery), so getters never throw.
+     */
+    private WuWmaImportState getState() {
+        WuWmaImportState result = state;
+        if (result == null) {
+            FacesContext fc = FacesContext.getCurrentInstance();
+            if (fc != null && fc.getExternalContext() != null) {
+                HttpSession session = (HttpSession) fc.getExternalContext().getSession(true);
+                if (session != null) {
+                    synchronized (session) {
+                        result = (WuWmaImportState) session.getAttribute(WuWmaImportState.SESSION_ATTRIBUTE);
+                        if (result == null) {
+                            result = new WuWmaImportState();
+                            session.setAttribute(WuWmaImportState.SESSION_ATTRIBUTE, result);
+                        }
+                    }
+                }
+            }
+            if (result == null) {
+                result = new WuWmaImportState();
+            }
+            state = result;
+        }
+        return result;
+    }
+
+    public boolean isRun() {
+        return getState().isRun();
+    }
+
+    public int getProgress() {
+        return getState().getProgress();
+    }
+
+    public int getItemCurrent() {
+        return getState().getItemCurrent();
+    }
+
+    public int getItemsTotal() {
+        return getState().getItemsTotal();
+    }
+
+    public int getErrors() {
+        return getState().getErrors();
+    }
+
+    public List<LogMessage> getLogQueue() {
+        return getState().getLogMessages();
+    }
 
     @Override
     public PluginType getType() {
@@ -129,9 +182,9 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
      * private method to read main configuration file
      */
     private void readConfiguration() {
-        updateLog("Start reading the configuration");
-
-        errors = 0;
+        // internal setup only - log to the server log, not to the shared UI log, so the log shown
+        // in the plugin does not accumulate config lines on every (re)construction of the plugin
+        log.debug("Start reading the configuration");
 
         // set specific title
         title = ConfigPlugins.getPluginConfig(id).getString("title");
@@ -150,15 +203,14 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
             importSets.add(new ImportSet(settitle, source, workflow));
         }
 
-        // write a log into the UI
-        updateLog("Configuration successfully read");
+        log.debug("Configuration successfully read");
     }
 
     /**
      * cancel a running import
      */
     public void cancel() {
-        run = false;
+        getState().setRun(false);
     }
 
     /**
@@ -168,14 +220,24 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
      */
     @Override
     public void startImport(IImportSet importset) {
+        // resolve the session state now (we are in a request), so the background thread and every
+        // later page visit share the same object; reset it for a fresh run
+        WuWmaImportState st = getState();
+        // guard against a second start while an import is still running: it would reset the very
+        // state the running worker thread keeps writing to
+        if (st.isRun()) {
+            log.debug("An import is already running - ignoring the additional start request");
+            return;
+        }
+        st.reset();
         updateLog("Start import for: " + importset.getTitle());
-        progress = 0;
+        st.setProgress(0);
         BeanHelper bhelp = new BeanHelper();
         // ObjectMapper om = new XmlMapper();
         XmlMapper om = new XmlMapper();
 
         // run the import in a separate thread to allow a dynamic progress bar
-        run = true;
+        st.setRun(true);
         Runnable runnable = () -> {
 
             // read input file
@@ -189,19 +251,19 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                 List<File> files = new ArrayList<>(fileCollection);
                 files.sort(NameFileComparator.NAME_INSENSITIVE_COMPARATOR);
 
-                itemsTotal = files.size();
-                itemCurrent = 0;
+                st.setItemsTotal(files.size());
+                st.setItemCurrent(0);
 
                 for (File file : files) {
                     // little delay
                     Thread.sleep(100);
-                    if (!run) {
+                    if (!st.isRun()) {
                         break;
                     }
 
                     if (file.exists() && !file.isHidden()) {
                         try {
-                            updateLog("Start importing: Record " + (itemCurrent + 1), 1);
+                            updateLog("Start importing: Record " + (st.getItemCurrent() + 1), 1);
 
                             List<SimpleContent> allContentFiles = new ArrayList<>();
 
@@ -346,8 +408,8 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                             }
 
                             // update database information for process
-                            Step st = process.getAktuellerSchritt();
-                            HelperSchritte.updateMetadataIndex(st);
+                            Step currentStep = process.getAktuellerSchritt();
+                            HelperSchritte.updateMetadataIndex(currentStep);
                             try {
                                 int numberOfFiles = StorageProvider.getInstance()
                                         .getNumberOfFiles(Paths.get(process.getImagesOrigDirectory(true)));
@@ -399,13 +461,13 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
                     }
                     // recalculate progress
-                    itemCurrent++;
-                    progress = 100 * itemCurrent / itemsTotal;
+                    st.incrementItemCurrent();
+                    st.setProgress(100 * st.getItemCurrent() / st.getItemsTotal());
                     updateLog("Processing of record done.");
                 }
 
                 // finally last push
-                run = false;
+                st.setRun(false);
                 Thread.sleep(2000);
                 updateLog("Import completed.");
             } catch (InterruptedException e) {
@@ -692,14 +754,15 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
      * @param logmessage
      */
     private void updateLog(String logmessage, int level) {
+        WuWmaImportState st = getState();
         if (level > 1) {
-            errors++;
+            st.incrementErrors();
         }
 
-        logQueue.add(new LogMessage(logmessage, level));
+        st.addLog(new LogMessage(logmessage, level));
         log.debug(logmessage);
-        if (pusher != null && System.currentTimeMillis() - lastPush > 500) {
-            lastPush = System.currentTimeMillis();
+        if (pusher != null && System.currentTimeMillis() - st.getLastPush() > 500) {
+            st.setLastPush(System.currentTimeMillis());
             pusher.send("update");
         }
     }
@@ -710,13 +773,6 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
         private String title;
         private String source;
         private String workflow;
-    }
-
-    @Data
-    @AllArgsConstructor
-    public class LogMessage {
-        private String message;
-        private int level = 0;
     }
 
     /**
