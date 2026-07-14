@@ -63,6 +63,7 @@ import ugh.dl.ContentFile;
 import ugh.dl.Corporate;
 import ugh.dl.DigitalDocument;
 import ugh.dl.DocStruct;
+import ugh.dl.DocStructType;
 import ugh.dl.Fileformat;
 import ugh.dl.Metadata;
 import ugh.dl.MetadataGroup;
@@ -244,8 +245,13 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
             try {
                 updateLog("Run through all import files");
                 // run through all goobi.xml files in the given folder
+                File sourceFolder = new File(importset.getSource());
+                if (!sourceFolder.isDirectory()) {
+                    updateLog("Source folder '" + importset.getSource() + "' does not exist or is not a directory.", 3);
+                    return;
+                }
                 String[] extensions = { "goobi.xml" };
-                Collection<File> fileCollection = FileUtils.listFiles(new File(importset.getSource()), extensions, true);
+                Collection<File> fileCollection = FileUtils.listFiles(sourceFolder, extensions, true);
                 fileCollection.removeIf(File::isHidden);
 
                 List<File> files = new ArrayList<>(fileCollection);
@@ -269,7 +275,26 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
                             // get the correct workflow to use
                             Process template = ProcessManager.getProcessByExactTitle(importset.getWorkflow());
-                            Prefs prefs = template.getRegelsatz().getPreferences();
+                            if (template == null) {
+                                throw new ImportException("No production template found with title '"
+                                        + importset.getWorkflow() + "' (importSet '" + importset.getTitle()
+                                        + "'). Please check the 'workflow' value in the plugin configuration.");
+                            }
+                            if (template.getRegelsatz() == null) {
+                                throw new ImportException("The production template '" + template.getTitel()
+                                        + "' has no ruleset assigned.");
+                            }
+                            Prefs prefs;
+                            try {
+                                prefs = template.getRegelsatz().getPreferences();
+                            } catch (Exception e) {
+                                throw new ImportException("The ruleset of template '" + template.getTitel()
+                                        + "' could not be loaded (invalid ruleset?): " + e.getMessage());
+                            }
+                            if (prefs == null) {
+                                throw new ImportException("The ruleset of template '" + template.getTitel()
+                                        + "' could not be loaded (invalid ruleset?).");
+                            }
 
                             // create digital document
                             Fileformat fileformat = new MetsMods(prefs);
@@ -277,14 +302,36 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                             fileformat.setDigitalDocument(dd);
 
                             // add the physical basics
-                            DocStruct physical = dd.createDocStruct(prefs.getDocStrctTypeByName("BoundBook"));
+                            DocStructType boundBookType = prefs.getDocStrctTypeByName("BoundBook");
+                            if (boundBookType == null) {
+                                throw new ImportException("The ruleset of template '" + template.getTitel()
+                                        + "' does not contain the required DocStruct type 'BoundBook'.");
+                            }
+                            DocStruct physical = dd.createDocStruct(boundBookType);
                             dd.setPhysicalDocStruct(physical);
-                            Metadata mdForPath = new Metadata(prefs.getMetadataTypeByName("pathimagefiles"));
+                            MetadataType pathImageType = prefs.getMetadataTypeByName("pathimagefiles");
+                            if (pathImageType == null) {
+                                throw new ImportException("The ruleset of template '" + template.getTitel()
+                                        + "' does not contain the required metadata type 'pathimagefiles'.");
+                            }
+                            Metadata mdForPath = new Metadata(pathImageType);
                             mdForPath.setValue("/images/");
                             physical.addMetadata(mdForPath);
 
                             // read the xml file
-                            SimpleImportObject sio = GoobiXmlReader.readReordered(file, om);
+                            SimpleImportObject sio;
+                            try {
+                                sio = GoobiXmlReader.readReordered(file, om);
+                            } catch (Exception e) {
+                                throw new ImportException("The import file is not valid XML or could not be parsed: "
+                                        + e.getMessage());
+                            }
+                            if (sio.getData() == null) {
+                                throw new ImportException("The import file has no <data> element.");
+                            }
+                            if (sio.getProcess() == null) {
+                                throw new ImportException("The import file has no <process> element.");
+                            }
 
                             // If there are any content values in process, add them to the first data object
                             for (SimpleContent sc : sio.getProcess().getContents()) {
@@ -296,14 +343,13 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                             expandGlobContents(sio.getData());
 
                             // add the logical basics
-                            DocStruct logical = dd
-                                    .createDocStruct(prefs.getDocStrctTypeByName(sio.getData().getType()));
-                            if (logical.getType() == null) {
-                                updateLog("The Publication type with name '" + sio.getData().getType()
-                                        + "' does not exist within the ruleset. Process cannot be created.", 3);
-                                throw new MetadataTypeNotAllowedException("Publication type " + sio.getData().getType()
-                                        + " does not exist. Process creation not possible.");
+                            String publicationType = sio.getData().getType();
+                            DocStructType logicalType = prefs.getDocStrctTypeByName(publicationType);
+                            if (logicalType == null) {
+                                throw new ImportException("The publication type '" + publicationType
+                                        + "' does not exist within the ruleset. Process cannot be created.");
                             }
+                            DocStruct logical = dd.createDocStruct(logicalType);
                             dd.setLogicalDocStruct(logical);
 
                             createMetadataAndAddFileReferences(allContentFiles, prefs, dd, physical, sio.getData(),
@@ -311,6 +357,9 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
                             // get process title
                             String processname = sio.getProcess().getTitle();
+                            if (StringUtils.isBlank(processname)) {
+                                throw new ImportException("The <process> element has no <title>.");
+                            }
                             String regex = ConfigurationHelper.getInstance().getProcessTitleReplacementRegex();
                             processname = processname.replaceAll(regex, "_").trim();
 
@@ -319,8 +368,13 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
                             // add journal entries
                             for (SimpleJournalEntry j : sio.getProcess().getJournalentries()) {
+                                LogType logType = j.getType() == null ? null : LogType.getByTitle(j.getType().toLowerCase());
+                                if (logType == null) {
+                                    updateLog("Unknown journal type '" + j.getType() + "', using INFO instead.", 2);
+                                    logType = LogType.INFO;
+                                }
                                 JournalEntry entry = new JournalEntry(process.getId(), new Date(), "Plugin " + title,
-                                        LogType.getByTitle(j.getType().toLowerCase()), j.getValue(), EntryType.PROCESS);
+                                        logType, j.getValue(), EntryType.PROCESS);
                                 JournalManager.saveJournalEntry(entry);
                             }
 
@@ -369,21 +423,32 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                             String stringFormatSpecifier = "%" + String.format("%02d", (int) Math.log10(Math.abs(allContentFiles.size())) + 1) + "d";
 
                             for (SimpleContent con : allContentFiles) {
-                                String targetBase = process.getConfiguredImageFolder(con.getFolder().trim());
+                                String folder = con.getFolder() == null ? "" : con.getFolder().trim();
+                                if (folder.isEmpty()) {
+                                    updateLog("Error: Content entry without a 'folder' attribute (source '"
+                                            + con.getSource() + "') - skipped", 3);
+                                    continue;
+                                }
+                                if (con.getSource() == null) {
+                                    updateLog("Error: Content entry in folder '" + folder
+                                            + "' has no source path - skipped", 3);
+                                    continue;
+                                }
+                                String targetBase = process.getConfiguredImageFolder(folder);
 
                                 // get the source folder
-                                if (targetBase == null && "source".equals(con.getFolder().trim())) {
+                                if (targetBase == null && "source".equals(folder)) {
                                     targetBase = process.getSourceDirectory();
                                 }
 
                                 // get the import folder
-                                if (targetBase == null && "import".equals(con.getFolder().trim())) {
+                                if (targetBase == null && "import".equals(folder)) {
                                     targetBase = process.getImportDirectory();
                                 }
 
                                 // if the target folder cannot be found
                                 if (targetBase == null) {
-                                    updateLog("Error: Target folder '" + con.getFolder() + "' does not exist for file '"
+                                    updateLog("Error: Target folder '" + folder + "' does not exist for file '"
                                             + con.getSource() + "'", 3);
                                 } else {
                                     File contentfile = new File(con.getSource());
@@ -393,16 +458,20 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                                     	String originalName = contentfile.getName();
                                         String regexExpression = ConfigurationHelper.getInstance().getProcessTitleReplacementRegex();
                                         int dot = originalName.lastIndexOf('.');
-                                        String normalizedName =
-                                                String.format(stringFormatSpecifier, fileCounter++) + "_" + originalName.substring(0, dot)
-                                                        .replaceAll(regexExpression, "_")
-                                                        + originalName.substring(dot);
+                                        String baseName = dot < 0 ? originalName : originalName.substring(0, dot);
+                                        String extension = dot < 0 ? "" : originalName.substring(dot);
+                                        String normalizedName = String.format(stringFormatSpecifier, fileCounter++) + "_"
+                                                + baseName.replaceAll(regexExpression, "_") + extension;
 
                                         StorageProvider.getInstance()
                                                 .copyFile(Paths.get(contentfile.getAbsolutePath()),
                                                         Paths.get(targetBase, con.getRelativePath(), normalizedName));
+                                    } else if (!contentfile.exists()) {
+                                        throw new ImportException("Content file does not exist: '"
+                                                + contentfile.getAbsolutePath() + "'");
                                     } else {
-                                        throw new RuntimeException("No read access to file: '" + contentfile.getAbsolutePath() + "'");
+                                        throw new ImportException("No read access to content file: '"
+                                                + contentfile.getAbsolutePath() + "'");
                                     }
                                 }
                             }
@@ -456,7 +525,9 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                                     + file.getAbsolutePath() + ": " + e.getMessage(), 3);
                             Helper.setFehlerMeldung("Error while creating a process during the import for file "
                                     + file.getAbsolutePath() + ": " + e.getMessage());
-                            pusher.send("error");
+                            if (pusher != null) {
+                                pusher.send("error");
+                            }
                         }
 
                     }
@@ -467,13 +538,20 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                 }
 
                 // finally last push
-                st.setRun(false);
                 Thread.sleep(2000);
                 updateLog("Import completed.");
             } catch (InterruptedException e) {
-                Helper.setFehlerMeldung("Error while trying to execute the import: " + e.getMessage());
-                log.error("Error while trying to execute the import", e);
-                updateLog("Error while trying to execute the import: " + e.getMessage(), 3);
+                Helper.setFehlerMeldung("Import was interrupted: " + e.getMessage());
+                log.error("Import was interrupted", e);
+                updateLog("Import was interrupted: " + e.getMessage(), 3);
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                // catch everything else so the worker thread never dies silently and leaves run stuck on true
+                Helper.setFehlerMeldung("Import aborted: " + e.getMessage());
+                log.error("Import aborted unexpectedly", e);
+                updateLog("Import aborted: " + e.getMessage(), 3);
+            } finally {
+                st.setRun(false);
             }
 
         };
@@ -564,29 +642,66 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
         // create all metadata fields
         for (SimpleMetadata sm : sd.getMetadatas()) {
-            ds.addMetadata(getMetadata(prefs, sm));
+            Metadata metadata = getMetadata(prefs, sm);
+            try {
+                ds.addMetadata(metadata);
+            } catch (MetadataTypeNotAllowedException e) {
+                throw new ImportException("Metadata '" + metadata.getType().getName() + "' is not allowed for DocStruct '"
+                        + ds.getType().getName()
+                        + "' - either the type is not permitted here, or its allowed number is exceeded.");
+            }
         }
 
         // create all corporates
         for (SimpleCorporate sc : sd.getCorporates()) {
-            ds.addCorporate(getCorporate(prefs, sc));
+            Corporate corporate = getCorporate(prefs, sc);
+            try {
+                ds.addCorporate(corporate);
+            } catch (MetadataTypeNotAllowedException e) {
+                throw new ImportException("Corporate '" + (sc.getRole() == null ? "" : sc.getRole().trim())
+                        + "' is not allowed for DocStruct '" + ds.getType().getName()
+                        + "' - either the type is not permitted here, or its allowed number is exceeded.");
+            }
         }
 
         // create all metadata groups
         for (SimpleGroup sg : sd.getGroups()) {
-            ds.addMetadataGroup(getGroup(prefs, sg));
+            MetadataGroup group = getGroup(prefs, sg);
+            try {
+                ds.addMetadataGroup(group);
+            } catch (MetadataTypeNotAllowedException e) {
+                throw new ImportException("Metadata group '" + (sg.getType() == null ? "" : sg.getType().trim())
+                        + "' is not allowed for DocStruct '" + ds.getType().getName()
+                        + "' - either the type is not permitted here, or its allowed number is exceeded.");
+            }
         }
 
         // create all persons
         for (SimplePerson sp : sd.getPersons()) {
-            ds.addPerson(getPerson(prefs, sp));
+            Person person = getPerson(prefs, sp);
+            try {
+                ds.addPerson(person);
+            } catch (MetadataTypeNotAllowedException e) {
+                throw new ImportException("Person '" + (sp.getRole() == null ? "" : sp.getRole().trim())
+                        + "' is not allowed for DocStruct '" + ds.getType().getName()
+                        + "' - either the type is not permitted here, or its allowed number is exceeded.");
+            }
         }
 
         // add all file references
         for (SimpleContent con : sd.getContents()) {
 
+            if (con.getSource() == null || con.getSource().trim().isEmpty()) {
+                updateLog("Content entry without a source path - skipped", 2);
+                continue;
+            }
+
             if (assignPages) {
-                DocStruct dsPage = dd.createDocStruct(prefs.getDocStrctTypeByName("page"));
+                DocStructType pageType = prefs.getDocStrctTypeByName("page");
+                if (pageType == null) {
+                    throw new ImportException("The ruleset does not contain the required DocStruct type 'page'.");
+                }
+                DocStruct dsPage = dd.createDocStruct(pageType);
                 physical.addChild(dsPage);
                 addMetadata("physPageNumber", String.valueOf(physical.getAllChildren().size()), prefs, dsPage);
                 addMetadata("logicalPageNumber", con.getLabel(), prefs, dsPage);
@@ -608,8 +723,9 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                 String originalName = f.getName();
                 String regexExpression = ConfigurationHelper.getInstance().getProcessTitleReplacementRegex();
                 int dot = originalName.lastIndexOf('.');
-                String normalizedName = originalName.substring(0, dot).replaceAll(regexExpression, "_")
-                        + originalName.substring(dot);
+                String baseName = dot < 0 ? originalName : originalName.substring(0, dot);
+                String extension = dot < 0 ? "" : originalName.substring(dot);
+                String normalizedName = baseName.replaceAll(regexExpression, "_") + extension;
 
                 cf.setLocation(normalizedName);
                 dsPage.addContentFile(cf);
@@ -619,9 +735,15 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
         // Go through all children
         for (SimpleData sdchild : sd.getData()) {
-            DocStruct dsPage = dd.createDocStruct(prefs.getDocStrctTypeByName(sdchild.getType()));
-            ds.addChild(dsPage);
-            createMetadataAndAddFileReferences(allContentFiles, prefs, dd, physical, sdchild, dsPage);
+            String childType = sdchild.getType() == null ? "" : sdchild.getType().trim();
+            DocStructType childDsType = prefs.getDocStrctTypeByName(childType);
+            if (childDsType == null) {
+                throw new ImportException("The (child) publication type '" + childType
+                        + "' does not exist within the ruleset.");
+            }
+            DocStruct dsChild = dd.createDocStruct(childDsType);
+            ds.addChild(dsChild);
+            createMetadataAndAddFileReferences(allContentFiles, prefs, dd, physical, sdchild, dsChild);
         }
     }
 
@@ -634,10 +756,10 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
      * @throws MetadataTypeNotAllowedException
      */
     private Corporate getCorporate(Prefs prefs, SimpleCorporate sc) throws MetadataTypeNotAllowedException {
-        MetadataType mdt = prefs.getMetadataTypeByName(sc.getRole().trim());
+        String role = sc.getRole() == null ? "" : sc.getRole().trim();
+        MetadataType mdt = prefs.getMetadataTypeByName(role);
         if (mdt == null) {
-            updateLog("The metadata type with name '" + sc.getRole().trim() + "' does not exist within the ruleset.",
-                    3);
+            throw new ImportException("The corporate role '" + role + "' does not exist within the ruleset.");
         }
         Corporate c = new Corporate(mdt);
         c.setMainName(sc.getName());
@@ -660,16 +782,20 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
      * @throws MetadataTypeNotAllowedException
      */
     private Metadata getMetadata(Prefs prefs, SimpleMetadata sm) throws MetadataTypeNotAllowedException {
-        MetadataType mdt = prefs.getMetadataTypeByName(sm.getType().trim());
-        if (mdt == null) {
-            updateLog("The metadata type with name '" + sm.getType().trim() + "' does not exist within the ruleset.",
-                    3);
+        String type = sm.getType() == null ? "" : sm.getType().trim();
+        if (type.isEmpty()) {
+            throw new ImportException("A <metadata> element without a 'type' attribute was found.");
         }
-        if (StringUtils.isBlank(sm.getValue())) {
-            updateLog("The metadata of type '" + sm.getType().trim() + "' is empty.", 3);
+        MetadataType mdt = prefs.getMetadataTypeByName(type);
+        if (mdt == null) {
+            throw new ImportException("The metadata type '" + type + "' does not exist within the ruleset.");
+        }
+        String value = sm.getValue() == null ? "" : sm.getValue().trim();
+        if (value.isEmpty()) {
+            throw new ImportException("The metadata of type '" + type + "' is empty.");
         }
         Metadata m = new Metadata(mdt);
-        m.setValue(sm.getValue().trim());
+        m.setValue(value);
         m.setAuthorityFile(sm.getAuthority(), sm.getAuthorityURI(), sm.getValueURI());
         return m;
     }
@@ -683,10 +809,10 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
      * @throws MetadataTypeNotAllowedException
      */
     private Person getPerson(Prefs prefs, SimplePerson sp) throws MetadataTypeNotAllowedException {
-        MetadataType mdt = prefs.getMetadataTypeByName(sp.getRole().trim());
+        String role = sp.getRole() == null ? "" : sp.getRole().trim();
+        MetadataType mdt = prefs.getMetadataTypeByName(role);
         if (mdt == null) {
-            updateLog("The metadata type with name '" + sp.getRole().trim() + "' does not exist within the ruleset.",
-                    3);
+            throw new ImportException("The person role '" + role + "' does not exist within the ruleset.");
         }
         Person p = new Person(mdt);
         p.setFirstname(sp.getFirstname());
@@ -704,10 +830,10 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
      * @throws MetadataTypeNotAllowedException
      */
     private MetadataGroup getGroup(Prefs prefs, SimpleGroup sg) throws MetadataTypeNotAllowedException {
-        MetadataGroupType mdt = prefs.getMetadataGroupTypeByName(sg.getType().trim());
+        String groupType = sg.getType() == null ? "" : sg.getType().trim();
+        MetadataGroupType mdt = prefs.getMetadataGroupTypeByName(groupType);
         if (mdt == null) {
-            updateLog("The metadata group type with name '" + sg.getType().trim()
-                    + "' does not exist within the ruleset.", 3);
+            throw new ImportException("The metadata group type '" + groupType + "' does not exist within the ruleset.");
         }
         MetadataGroup group = new MetadataGroup(mdt);
 
@@ -786,8 +912,24 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
      */
     private void addMetadata(String type, String value, Prefs prefs, DocStruct ds)
             throws MetadataTypeNotAllowedException {
-        Metadata m = new Metadata(prefs.getMetadataTypeByName(type));
-        m.setValue(value);
+        MetadataType mdt = prefs.getMetadataTypeByName(type);
+        if (mdt == null) {
+            throw new ImportException("The ruleset does not contain the required metadata type '" + type + "'.");
+        }
+        Metadata m = new Metadata(mdt);
+        m.setValue(value == null ? "" : value);
         ds.addMetadata(m);
+    }
+
+    /**
+     * Thrown for invalid import input or ruleset problems. Carries a clear, human-readable message
+     * (unlike UGH's generic exceptions) and is unchecked so it surfaces via the per-record catch.
+     */
+    private static class ImportException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        ImportException(String message) {
+            super(message);
+        }
     }
 }
