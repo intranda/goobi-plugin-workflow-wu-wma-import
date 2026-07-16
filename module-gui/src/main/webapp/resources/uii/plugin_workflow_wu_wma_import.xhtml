@@ -10,7 +10,8 @@
     xmlns:p="http://primefaces.org/ui"
     xmlns:jsf="http://xmlns.jcp.org/jsf"
     xmlns:button="http://goobi.io/button"
-    xmlns:section="http://goobi.io/section">
+    xmlns:section="http://goobi.io/section"
+    xmlns:util="http://goobi.io/util">
     <style>
         .progress {
             border: 1px solid #EFAD4E;
@@ -58,10 +59,10 @@
                             title="#{msgs[NavigationForm.workflowPlugin.title]}" />
                         <h:form
                             id="myform"
-                        	prependId="false"    
+                        	prependId="false"
                             onkeypress="submitOnEnter(event);">
                             <section:body padding="true">
-                                
+
                                 <!-- Wrapper immer rendern, damit WebSocket-AJAX ein stabiles DOM-Ziel hat -->
                                 <h:panelGroup id="progressContainer" layout="block">
                                     <h:panelGroup
@@ -89,7 +90,7 @@
                                       </div>
                                     </div>
                                 </ui:fragment>
-                                
+
                                 <!-- // progress bar -->
                             </section:body>
                             <section:footer>
@@ -106,12 +107,7 @@
                                             aria-haspopup="true"
                                             aria-expanded="false"
                                             type="button">
-                                            <span
-                                                aria-hidden="true"
-                                                class="fa fa-play-circle" />
-                                            <span>
-                                                #{msgs.plugin_intranda_workflow_startImport}
-                                            </span>
+                                            <util:icon-text icon="circle-caret-right" text="#{msgs.plugin_intranda_workflow_startImport}" />
                                         </button>
                                         <ul class="dropdown-menu">
                                             <ui:repeat
