@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Example 2 - Monograph with persons, corporates and authority data (medium)
+  =========================================================================
+  Demonstrates: rich metadata, several persons in different roles, corporate
+  bodies (with subname/partname and GND authority data), authority data on
+  metadata and persons, pagination with mixed numbering (roman/arabic).
+  Authority data can be given either in detail (authority/authorityURI/valueURI)
+  or fully, as is common in the ruleset.
+-->
+<goobi-import>
+
+  <data type="Monograph">
+
+    <!-- Descriptive metadata -->
+    <metadata label="Main title" type="TitleDocMain">Studies in the History of Printing in the 19th Century</metadata>
+    <metadata label="Short title" type="TitleDocMainShort">Printing History</metadata>
+    <metadata label="Subtitle" type="TitleDocSub1">From the Hand Press to the Rotary Machine</metadata>
+    <metadata label="Other title" type="OtherTitle">Contributions to Book Studies</metadata>
+    <metadata label="Identifier" type="CatalogIDDigital">SMP-0002</metadata>
+    <metadata label="Source identifier" type="CatalogIDSource">HT001234567</metadata>
+    <metadata label="ISBN" type="ISBN">978-3-16-148410-0</metadata>
+    <metadata label="Collection" type="singleDigCollection">Sample Collection</metadata>
+    <metadata label="Year of publication" type="PublicationYear">1899</metadata>
+    <metadata label="Place of publication" type="PlaceOfPublication">London</metadata>
+    <metadata label="Publisher" type="PublisherName">Book Society Press</metadata>
+    <metadata label="Language" type="DocLanguage">eng</metadata>
+    <metadata label="Extent" type="physicalDescriptionExtent">XII, 348 pages : illustrations</metadata>
+    <metadata label="Shelfmark" type="shelfmarksource">4 Inc 1234</metadata>
+    <metadata label="Description" type="Description">A comprehensive account of the technical development of printing in the 19th century.</metadata>
+    <metadata label="Subject" type="SubjectTopic" authority="gnd" authorityURI="https://d-nb.info/gnd/" valueURI="4008570-3">Printing</metadata>
+    <metadata label="Subject place" type="SubjectGeographic">London</metadata>
+    <metadata label="DDC" type="DDC">686.2</metadata>
+
+    <!-- Persons in different roles (role = ruleset metadata type) -->
+    <person label="Author" role="Author" firstname="William" lastname="Hoffmann" authority="gnd" authorityURI="https://d-nb.info/gnd/" valueURI="118552710" />
+    <person label="Editor" role="Editor" firstname="Clara" lastname="Meyer" />
+    <person label="Translator" role="Translator" firstname="Henri" lastname="Dubois" />
+    <person label="Illustrator" role="IllustratorArtist" firstname="Emil" lastname="Schneider" />
+    <person label="Printer" role="Printer" firstname="Anton" lastname="Brandt" />
+
+    <!-- Corporate body with subdivision and authority data -->
+    <corporate role="CorporateContributor" name="British Book Society" authority="gnd" authorityURI="https://d-nb.info/gnd/" valueURI="2007744-0">
+      <subname>Department of Printing History</subname>
+      <subname>Working Group on the History of Technology</subname>
+      <partname>London Branch</partname>
+    </corporate>
+
+    <!-- Corporate body without authority data -->
+    <corporate role="HostInstitution" name="University Library London" />
+
+    <!-- Media: roman numbering for front matter, then arabic -->
+    <content folder="media" label="I">/opt/digiverso/import/examples/smp02/media/00000001.tif</content>
+    <content folder="media" label="II">/opt/digiverso/import/examples/smp02/media/00000002.tif</content>
+    <content folder="media" label="III">/opt/digiverso/import/examples/smp02/media/00000003.tif</content>
+    <content folder="media" label="1">/opt/digiverso/import/examples/smp02/media/00000004.tif</content>
+    <content folder="media" label="2">/opt/digiverso/import/examples/smp02/media/00000005.tif</content>
+    <content folder="media" label="3">/opt/digiverso/import/examples/smp02/media/00000006.tif</content>
+
+  </data>
+
+  <process>
+    <title>example_monograph_persons</title>
+
+    <!-- Properties on the process -->
+    <property name="Resolution">400 dpi</property>
+    <property name="Typeface">Antiqua</property>
+
+    <!-- Journal entries (type: info|debug|warn|error|user|important) -->
+    <journal type="info" creator="-automatic-">Import via mass import plugin</journal>
+  </process>
+
+</goobi-import>
