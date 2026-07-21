@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Example 3 - Monograph with nested chapters (medium to long)
+  ===========================================================
+  Demonstrates: multi-level logical hierarchy via nested <data> elements
+  (Monograph > Chapter > Chapter), metadata per structural level, and the
+  distribution of media/pagination across the individual structural units.
+
+  Note on pagination: The physical page count (physPageNumber) is assigned
+  sequentially by the plugin across ALL <content> entries in document order.
+  The label attribute provides the logical page number. Pages are
+  automatically linked to their structure and to all parent levels.
+-->
+<goobi-import>
+
+  <data type="Monograph">
+
+    <!-- Metadata of the top level -->
+    <metadata label="Main title" type="TitleDocMain">Travel Account through the Alps</metadata>
+    <metadata label="Identifier" type="CatalogIDDigital">SMP-0003</metadata>
+    <metadata label="Collection" type="singleDigCollection">Sample Collection</metadata>
+    <metadata label="Year of publication" type="PublicationYear">1912</metadata>
+    <metadata label="Place of publication" type="PlaceOfPublication">Vienna</metadata>
+    <metadata label="Language" type="DocLanguage">eng</metadata>
+    <person label="Author" role="Author" firstname="Frank" lastname="Steiner" />
+
+    <!-- Title page directly on the top level -->
+    <content folder="media" label="[Title]">/opt/digiverso/import/examples/smp03/media/00000001.tif</content>
+
+    <!-- Chapter 1 -->
+    <data type="Chapter">
+      <metadata label="Chapter title" type="TitleDocMain">Part One: Departure</metadata>
+      <content folder="media" label="1">/opt/digiverso/import/examples/smp03/media/00000002.tif</content>
+      <content folder="media" label="2">/opt/digiverso/import/examples/smp03/media/00000003.tif</content>
+
+      <!-- Sub-chapter 1.1 -->
+      <data type="Chapter">
+        <metadata label="Chapter title" type="TitleDocMain">The Preparation</metadata>
+        <content folder="media" label="3">/opt/digiverso/import/examples/smp03/media/00000004.tif</content>
+        <content folder="media" label="4">/opt/digiverso/import/examples/smp03/media/00000005.tif</content>
+      </data>
+
+      <!-- Sub-chapter 1.2 -->
+      <data type="Chapter">
+        <metadata label="Chapter title" type="TitleDocMain">The First Stage</metadata>
+        <content folder="media" label="5">/opt/digiverso/import/examples/smp03/media/00000006.tif</content>
+        <content folder="media" label="6">/opt/digiverso/import/examples/smp03/media/00000007.tif</content>
+      </data>
+    </data>
+
+    <!-- Chapter 2 -->
+    <data type="Chapter">
+      <metadata label="Chapter title" type="TitleDocMain">Part Two: In the High Mountains</metadata>
+      <person label="Photographer" role="Photographer" firstname="Louise" lastname="Berger" />
+      <content folder="media" label="7">/opt/digiverso/import/examples/smp03/media/00000008.tif</content>
+      <content folder="media" label="8">/opt/digiverso/import/examples/smp03/media/00000009.tif</content>
+
+      <!-- A figure as its own structural unit -->
+      <data type="Figure">
+        <metadata label="Caption" type="TitleDocMain">Panorama from the Summit</metadata>
+        <content folder="media" label="9">/opt/digiverso/import/examples/smp03/media/00000010.tif</content>
+      </data>
+    </data>
+
+  </data>
+
+  <process>
+    <title>example_monograph_chapters</title>
+    <property name="Resolution">300 dpi</property>
+    <journal type="info" creator="-automatic-">Import with hierarchical structure</journal>
+  </process>
+
+</goobi-import>

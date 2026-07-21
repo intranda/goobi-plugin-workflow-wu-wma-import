@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Example 1 - Minimal monograph (short)
+  =====================================
+  Smallest possible example: a single monograph with the ruleset's mandatory
+  metadata, one author and three pages.
+  Demonstrates: structure (data/type), metadata, person, pagination, media.
+  All element types used exist in the standard ruleset.
+-->
+<goobi-import>
+
+  <!-- Logical structure incl. metadata for the METS file -->
+  <data type="Monograph">
+
+    <!-- Metadata (mandatory ruleset fields: TitleDocMain, CatalogIDDigital, singleDigCollection) -->
+    <metadata label="Main title" type="TitleDocMain">The Art of Letterpress Printing</metadata>
+    <metadata label="Identifier" type="CatalogIDDigital">SMP-0001</metadata>
+    <metadata label="Collection" type="singleDigCollection">Sample Collection</metadata>
+    <metadata label="Year of publication" type="PublicationYear">1875</metadata>
+    <metadata label="Place of publication" type="PlaceOfPublication">London</metadata>
+    <metadata label="Language" type="DocLanguage">eng</metadata>
+
+    <!-- Person: role = ruleset metadata type (here Author) -->
+    <person label="Author" role="Author" firstname="William" lastname="Caxton" />
+
+    <!-- Media with pagination: label becomes the logical page number -->
+    <content folder="media" label="[1]">/opt/digiverso/import/examples/smp01/media/00000001.tif</content>
+    <content folder="media" label="[2]">/opt/digiverso/import/examples/smp01/media/00000002.tif</content>
+    <content folder="media" label="[3]">/opt/digiverso/import/examples/smp01/media/00000003.tif</content>
+
+  </data>
+
+  <!-- Settings per Goobi process -->
+  <process>
+    <title>example_monograph_minimal</title>
+  </process>
+
+</goobi-import>

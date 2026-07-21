@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Example 5 - Full showcase (long, all features)
+  ==============================================
+  Demonstrates every construct supported by the plugin in a single file:
+    - multi-level logical hierarchy (Monograph > Chapter > Chapter)
+    - metadata with and without authority data (authority/authorityURI/valueURI)
+    - persons in multiple roles (with authority data)
+    - corporate bodies (subname/partname, with authority data)
+    - metadata groups incl. metadata and a nested sub-group
+    - pagination and media on several levels (media + master)
+    - wildcard resolution in <content>
+    - process block with title, batch, several properties and journal entries
+
+  NOTE on metadata groups:
+  For a <group> to be imported, its group type (attribute type, here e.g.
+  "Repository", "AccessRestrictGroup") must be defined as a Group in the ruleset
+  AND allowed on the respective structure type. The group and field names used
+  here correspond to the standard ruleset.
+-->
+<goobi-import>
+
+  <data type="Monograph">
+
+    <!-- ===== Metadata (partly with GND authority data) ===== -->
+    <metadata label="Main title" type="TitleDocMain">Handbook of Historical Printing Techniques</metadata>
+    <metadata label="Short title" type="TitleDocMainShort">Printing Techniques</metadata>
+    <metadata label="Subtitle" type="TitleDocSub1">An Illustrated Compendium</metadata>
+    <metadata label="Identifier" type="CatalogIDDigital">SMP-0005</metadata>
+    <metadata label="Source identifier" type="CatalogIDSource">HT009988776</metadata>
+    <metadata label="ISBN" type="ISBN">978-3-16-148999-0</metadata>
+    <metadata label="Collection" type="singleDigCollection">Sample Collection</metadata>
+    <metadata label="Year of publication" type="PublicationYear">1905</metadata>
+    <metadata label="Place of publication" type="PlaceOfPublication">Berlin</metadata>
+    <metadata label="Publisher" type="PublisherName">Imperial Printing Office</metadata>
+    <metadata label="Language" type="DocLanguage">eng</metadata>
+    <metadata label="Extent" type="physicalDescriptionExtent">XVI, 512 pages : numerous illustrations</metadata>
+    <metadata label="Shelfmark" type="shelfmarksource">2 Art 456</metadata>
+    <metadata label="Location" type="PhysicalLocation">Berlin State Library</metadata>
+    <metadata label="Description" type="Description">A systematic overview of printing processes from relief printing to collotype.</metadata>
+    <metadata label="Abstract" type="Abstract">The handbook covers the tools, materials and workflows of the most important historical printing processes.</metadata>
+    <metadata label="Subject" type="SubjectTopic" authority="gnd" authorityURI="https://d-nb.info/gnd/" valueURI="4013000-6">Printing technology</metadata>
+    <metadata label="Subject person" type="SubjectPerson">Senefelder, Alois</metadata>
+    <metadata label="DDC" type="DDC">686</metadata>
+
+    <!-- ===== Persons ===== -->
+    <person label="Author" role="Author" firstname="Henry" lastname="Wagner" authority="gnd" authorityURI="https://d-nb.info/gnd/" valueURI="118559796" />
+    <person label="Editor" role="Editor" firstname="Mary" lastname="Lindner" />
+    <person label="Illustrator" role="IllustratorArtist" firstname="Otto" lastname="Grimm" />
+
+    <!-- ===== Corporate bodies ===== -->
+    <corporate role="CorporateContributor" name="Imperial Printing Office" authority="gnd" authorityURI="https://d-nb.info/gnd/" valueURI="5091235-3">
+      <subname>Copperplate Printing Department</subname>
+      <partname>Berlin Workshop</partname>
+    </corporate>
+    <corporate role="HostInstitution" name="Berlin State Library" />
+
+    <!-- ===== Metadata group: holding institution ===== -->
+    <group label="Repository" type="Repository">
+      <metadata label="Label" type="RepositoryLabel">Berlin State Library - Prussian Cultural Heritage</metadata>
+      <metadata label="Address" type="RepositoryAddress">Unter den Linden 8, 10117 Berlin</metadata>
+      <metadata label="Link" type="RepositoryLink">https://staatsbibliothek-berlin.de</metadata>
+      <metadata label="Link name" type="RepositoryLinkName">Berlin State Library</metadata>
+    </group>
+
+    <!-- ===== Metadata group: access restriction ===== -->
+    <group label="Access restriction" type="AccessRestrictGroup">
+      <metadata label="License" type="RestrictionOnAccessLicense">Public Domain</metadata>
+      <metadata label="Date" type="Date">1905</metadata>
+    </group>
+
+    <!-- ===== Metadata group with a nested sub-group =====
+         Note: groups may also contain <person> and <corporate> (see
+         marke1.goobi.xml). The respective group type must allow the role in
+         the ruleset. "Person" here is an ordinary metadata field of the group
+         type OriginalsLocationGroup, hence <metadata>. -->
+    <group label="Location of originals" type="OriginalsLocationGroup">
+      <metadata label="Shelfmark" type="shelfmarksource">2 Art 456</metadata>
+      <metadata label="Link" type="RepositoryLink">https://staatsbibliothek-berlin.de/original</metadata>
+      <metadata label="Contact" type="Person">Hartmann, Julia</metadata>
+
+      <!-- Sub-group within a group -->
+      <group label="Access restriction" type="AccessRestrictGroup">
+        <metadata label="License" type="RestrictionOnAccessLicense">Reading room only</metadata>
+        <metadata label="Date" type="Date">2024</metadata>
+      </group>
+    </group>
+
+    <!-- ===== Media on the top level (front matter) ===== -->
+    <content folder="media" label="[Cover]">/opt/digiverso/import/examples/smp05/media/00000001.tif</content>
+    <content folder="media" label="I">/opt/digiverso/import/examples/smp05/media/00000002.tif</content>
+    <content folder="media" label="II">/opt/digiverso/import/examples/smp05/media/00000003.tif</content>
+
+    <!-- ===== Chapter 1 with its own metadata, person and pages ===== -->
+    <data type="Chapter">
+      <metadata label="Chapter title" type="TitleDocMain">Chapter 1: Relief Printing Processes</metadata>
+      <metadata label="Subject" type="SubjectTopic">Letterpress printing</metadata>
+      <person label="Contributor" role="Contributor" firstname="Paul" lastname="Roth" />
+      <content folder="media" label="1">/opt/digiverso/import/examples/smp05/media/00000004.tif</content>
+      <content folder="media" label="2">/opt/digiverso/import/examples/smp05/media/00000005.tif</content>
+
+      <!-- Sub-chapter 1.1 -->
+      <data type="Chapter">
+        <metadata label="Chapter title" type="TitleDocMain">1.1 Printing with Movable Type</metadata>
+        <content folder="media" label="3">/opt/digiverso/import/examples/smp05/media/00000006.tif</content>
+        <content folder="media" label="4">/opt/digiverso/import/examples/smp05/media/00000007.tif</content>
+      </data>
+    </data>
+
+    <!-- ===== Chapter 2: remaining pages via wildcard ===== -->
+    <data type="Chapter">
+      <metadata label="Chapter title" type="TitleDocMain">Chapter 2: Planographic Printing Processes</metadata>
+      <content folder="media">/opt/digiverso/import/examples/smp05/media/chapter2/*.tif</content>
+    </data>
+
+  </data>
+
+  <process>
+    <title>example_showcase_all_features</title>
+    <batch>Showcase batch</batch>
+
+    <property name="Resolution">600 dpi</property>
+    <property name="Typeface">Blackletter</property>
+    <property name="Color depth">24 bit</property>
+
+    <journal type="info" creator="-automatic-">Import via mass import plugin started</journal>
+    <journal type="important" creator="-automatic-">Full example with groups and hierarchy</journal>
+
+    <!-- content in the process block is assigned to the top-level data element during import -->
+    <content folder="source">/opt/digiverso/import/examples/smp05/source/catalog_record.xml</content>
+  </process>
+
+</goobi-import>

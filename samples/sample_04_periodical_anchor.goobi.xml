@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Example 4 - Periodical with anchor hierarchy (long)
+  ===================================================
+  Demonstrates: a multi-volume structure with an anchor setup, as is common
+  for newspapers and journals:
+
+      Periodical (anchor)               -> shared bibliographic record
+        level PeriodicalVolume (year)    -> volume/year data
+          level PeriodicalIssue (issue)  -> single issue with pages
+
+  The ruleset marks "Periodical" as anchor="true"; on saving, Goobi
+  automatically creates the anchor file from it. The attribute anchor="true"
+  on the top-level <data> additionally documents this.
+
+  Also demonstrated: wildcard paths in <content> (e.g. ".../*.tif"), which the
+  plugin resolves into individual files (sorted alphabetically) during import.
+-->
+<goobi-import>
+
+  <!-- Anchor level: shared bibliographic record of the periodical -->
+  <data type="Periodical" anchor="true">
+    <metadata label="Main title" type="TitleDocMain">Weekly Review of Arts and Sciences</metadata>
+    <metadata label="Identifier" type="CatalogIDDigital">SMP-0004</metadata>
+    <metadata label="Collection" type="singleDigCollection">Sample Collection</metadata>
+    <metadata label="Publisher" type="PublisherName">London : Society for Public Education</metadata>
+    <metadata label="Language" type="DocLanguage">eng</metadata>
+    <corporate role="IssuingBody" name="Society for Public Education" />
+
+    <!-- Volume 1910 -->
+    <data type="PeriodicalVolume">
+      <metadata label="Volume title" type="TitleDocMain">Weekly Review, Volume 1910</metadata>
+      <metadata label="Volume number" type="CurrentNo">1910</metadata>
+      <metadata label="Sorting number" type="CurrentNoSorting">1910</metadata>
+      <metadata label="Year of publication" type="PublicationYear">1910</metadata>
+      <metadata label="Identifier" type="CatalogIDDigital">SMP-0004_1910</metadata>
+
+      <!-- Issue 1 -->
+      <data type="PeriodicalIssue">
+        <metadata label="Issue title" type="TitleDocMain">Issue 1 (January 1910)</metadata>
+        <metadata label="Issue number" type="CurrentNo">1</metadata>
+        <metadata label="Sorting number" type="CurrentNoSorting">1</metadata>
+        <content folder="master" label="1">/opt/digiverso/import/examples/smp04/1910/issue01/00000001.tif</content>
+        <content folder="master" label="2">/opt/digiverso/import/examples/smp04/1910/issue01/00000002.tif</content>
+        <content folder="master" label="3">/opt/digiverso/import/examples/smp04/1910/issue01/00000003.tif</content>
+        <content folder="master" label="4">/opt/digiverso/import/examples/smp04/1910/issue01/00000004.tif</content>
+      </data>
+
+      <!-- Issue 2: all TIFs in the folder via wildcard -->
+      <data type="PeriodicalIssue">
+        <metadata label="Issue title" type="TitleDocMain">Issue 2 (February 1910)</metadata>
+        <metadata label="Issue number" type="CurrentNo">2</metadata>
+        <metadata label="Sorting number" type="CurrentNoSorting">2</metadata>
+        <content folder="master">/opt/digiverso/import/examples/smp04/1910/issue02/*.tif</content>
+      </data>
+
+    </data>
+
+    <!-- Volume 1911 -->
+    <data type="PeriodicalVolume">
+      <metadata label="Volume title" type="TitleDocMain">Weekly Review, Volume 1911</metadata>
+      <metadata label="Volume number" type="CurrentNo">1911</metadata>
+      <metadata label="Sorting number" type="CurrentNoSorting">1911</metadata>
+      <metadata label="Year of publication" type="PublicationYear">1911</metadata>
+      <metadata label="Identifier" type="CatalogIDDigital">SMP-0004_1911</metadata>
+
+      <data type="PeriodicalIssue">
+        <metadata label="Issue title" type="TitleDocMain">Issue 1 (January 1911)</metadata>
+        <metadata label="Issue number" type="CurrentNo">1</metadata>
+        <metadata label="Sorting number" type="CurrentNoSorting">1</metadata>
+        <content folder="master" label="1">/opt/digiverso/import/examples/smp04/1911/issue01/00000001.tif</content>
+        <content folder="master" label="2">/opt/digiverso/import/examples/smp04/1911/issue01/00000002.tif</content>
+      </data>
+
+    </data>
+
+  </data>
+
+  <process>
+    <title>example_periodical_anchor</title>
+    <!-- Processes can be grouped into a batch -->
+    <batch>Periodical import 1910-1911</batch>
+    <property name="Resolution">400 dpi</property>
+    <journal type="info" creator="-automatic-">Anchor import periodical</journal>
+  </process>
+
+</goobi-import>
