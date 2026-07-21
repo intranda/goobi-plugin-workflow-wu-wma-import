@@ -5,9 +5,9 @@
   Demonstrates: a multi-volume structure with an anchor setup, as is common
   for newspapers and journals:
 
-      Periodical (anchor)               -> shared bibliographic record
-        level PeriodicalVolume (year)    -> volume/year data
-          level PeriodicalIssue (issue)  -> single issue with pages
+      Periodical (anchor) -> shared bibliographic record
+        PeriodicalVolume (year) -> volume/year data
+          PeriodicalIssue (issue) -> single issue with pages
 
   The ruleset marks "Periodical" as anchor="true"; on saving, Goobi
   automatically creates the anchor file from it. The attribute anchor="true"
