@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified">
+
+  <xs:annotation>
+    <xs:documentation>
+      XML Schema for the *.goobi.xml import format read by
+      goobi-plugin-workflow-wu-wma-import (WuWmaImportWorkflowPlugin).
+
+      Reverse-engineered from:
+        - module-lib/src/main/java/io/goobi/workflow/importer/model/Simple*.java
+          (the Jackson-XML-annotated data model the file is deserialized into)
+        - module-base/src/main/java/de/intranda/goobi/plugins/WuWmaImportWorkflowPlugin.java
+          (how each element is actually used when creating a Goobi process)
+        - module-base/src/main/java/de/intranda/goobi/plugins/GoobiXmlReader.java
+        - samples/marke1.goobi.xml and samples/sample_01..05_*.goobi.xml
+
+      Element order note: GoobiXmlReader reorders the children of every
+      &lt;data&gt; and &lt;group&gt; element (groups first, metadata last)
+      before handing the document to Jackson, so the plugin itself tolerates
+      any authoring order of metadata/person/corporate/group/content/data.
+      This schema reflects that permissiveness (xs:choice, unbounded, any
+      order). The recommended/idiomatic order, as used in every hand-written
+      sample, is: metadata*, person*, corporate*, group*, content*, data*.
+
+      Pagination note: physPageNumber is assigned sequentially in document
+      order across ALL &lt;content&gt; elements found anywhere in the &lt;data&gt;
+      tree (top-level and nested), not per structural level.
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- ============================== Root ============================== -->
+
+  <xs:element name="goobi-import">
+    <xs:annotation>
+      <xs:documentation>
+        Root element. Maps to SimpleImportObject. Both children are required
+        in practice: WuWmaImportWorkflowPlugin dereferences sio.getData()
+        and sio.getProcess().getTitle() unconditionally.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="data" type="dataType"/>
+        <xs:element name="process" type="processType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ============================== data ============================== -->
+
+  <xs:complexType name="dataType">
+    <xs:annotation>
+      <xs:documentation>
+        One node of the logical structure tree. Maps to SimpleData.
+        type="..." is looked up 1:1 as a ruleset DocStrctType name
+        (prefs.getDocStrctTypeByName(...)); an unknown type aborts the
+        import for the whole file. &lt;data&gt; may recurse into further
+        &lt;data&gt; children to unlimited depth (e.g. Monograph > Chapter >
+        Chapter), each becoming a child DocStruct of its parent.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="metadata" type="metadataType"/>
+      <xs:element name="person" type="personType"/>
+      <xs:element name="corporate" type="corporateType"/>
+      <xs:element name="group" type="groupType"/>
+      <xs:element name="content" type="contentType"/>
+      <xs:element name="data" type="dataType"/>
+    </xs:choice>
+    <xs:attribute name="type" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>Ruleset DocStrctType name (e.g. "Monograph", "Chapter", "Periodical").</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="anchor" type="xs:boolean" use="optional" default="false">
+      <xs:annotation>
+        <xs:documentation>
+          Documents that the ruleset marks this DocStrctType as an anchor
+          (e.g. a Periodical). Not otherwise evaluated by the current
+          plugin code (anchor handling itself is driven by the ruleset,
+          not by this attribute) — informational only.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- ============================== group ============================== -->
+
+  <xs:complexType name="groupType">
+    <xs:annotation>
+      <xs:documentation>
+        A repeatable metadata group. Maps to SimpleGroup. type="..." is
+        looked up as a ruleset MetadataGroupType name, and must be allowed
+        on the enclosing structure type. Groups may recursively contain
+        further &lt;group&gt; elements (sub-groups), to unlimited depth.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="metadata" type="metadataType"/>
+      <xs:element name="person" type="personType"/>
+      <xs:element name="corporate" type="corporateType"/>
+      <xs:element name="group" type="groupType"/>
+    </xs:choice>
+    <xs:attribute name="label" type="xs:string" use="optional"/>
+    <xs:attribute name="type" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>Ruleset MetadataGroupType name (e.g. "Repository", "AccessRestrictGroup").</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- ============================== metadata ============================== -->
+
+  <xs:complexType name="metadataType">
+    <xs:annotation>
+      <xs:documentation>
+        A single descriptive metadata value. Maps to SimpleMetadata.
+        type="..." is looked up 1:1 as a ruleset MetadataType name
+        (prefs.getMetadataTypeByName(...)); the element's text content
+        becomes the metadata value.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="label" type="xs:string" use="optional">
+          <xs:annotation>
+            <xs:documentation>Free-text display label; not used for any lookup logic.</xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="type" type="xs:string" use="required">
+          <xs:annotation>
+            <xs:documentation>Ruleset MetadataType name (e.g. "TitleDocMain", "CatalogIDDigital").</xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="valueURI" type="xs:string" use="optional"/>
+        <xs:attribute name="doctype" type="xs:string" use="optional"/>
+        <xs:attribute name="authority" type="xs:string" use="optional">
+          <xs:annotation>
+            <xs:documentation>Authority file short name, e.g. "gnd".</xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="authorityURI" type="xs:string" use="optional"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- ============================== person ============================== -->
+
+  <xs:complexType name="personType">
+    <xs:annotation>
+      <xs:documentation>
+        A person associated with the enclosing &lt;data&gt; or &lt;group&gt;.
+        Maps to SimplePerson. role="..." is looked up 1:1 as a ruleset
+        (person) MetadataType name.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="label" type="xs:string" use="optional"/>
+    <xs:attribute name="authority" type="xs:string" use="optional"/>
+    <xs:attribute name="authorityURI" type="xs:string" use="optional"/>
+    <xs:attribute name="valueURI" type="xs:string" use="optional"/>
+    <xs:attribute name="role" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>Ruleset MetadataType name for a person field (e.g. "Author", "Editor", "Translator").</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="firstname" type="xs:string" use="optional"/>
+    <xs:attribute name="lastname" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- ============================== corporate ============================== -->
+
+  <xs:complexType name="corporateType">
+    <xs:annotation>
+      <xs:documentation>
+        A corporate body associated with the enclosing &lt;data&gt; or
+        &lt;group&gt;. Maps to SimpleCorporate. role="..." is looked up 1:1
+        as a ruleset (corporate) MetadataType name.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="subname" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="partname" type="xs:string" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="label" type="xs:string" use="optional"/>
+    <xs:attribute name="authority" type="xs:string" use="optional"/>
+    <xs:attribute name="authorityURI" type="xs:string" use="optional"/>
+    <xs:attribute name="valueURI" type="xs:string" use="optional"/>
+    <xs:attribute name="role" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>Ruleset MetadataType name for a corporate field (e.g. "CorporateContributor", "HostInstitution", "IssuingBody").</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- ============================== content ============================== -->
+
+  <xs:complexType name="contentType">
+    <xs:annotation>
+      <xs:documentation>
+        A reference to one media/master/source file (or, via a "*"/"?"
+        wildcard in the text value, to a set of files resolved and sorted
+        alphabetically at import time). Maps to SimpleContent. Text content
+        is the absolute source path.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:simpleContent>
+      <xs:extension base="nonEmptyString">
+        <xs:attribute name="folder" type="xs:string" use="required">
+          <xs:annotation>
+            <xs:documentation>
+              Target folder for the copied file. Either a Goobi-configured
+              image folder name for the process (e.g. "media", "master"),
+              or one of the two literal keywords "source" or "import",
+              which resolve to the process's source/import directory.
+              Required: the plugin calls folder.trim() unconditionally.
+            </xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="relativePath" type="xs:string" use="optional" default="">
+          <xs:annotation>
+            <xs:documentation>Optional subdirectory under the target folder.</xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="label" type="xs:string" use="optional">
+          <xs:annotation>
+            <xs:documentation>Becomes the physical page's logicalPageNumber (e.g. "1", "[Title]", "I").</xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- ============================== process ============================== -->
+
+  <xs:complexType name="processType">
+    <xs:annotation>
+      <xs:documentation>
+        Per-process settings. Maps to SimpleProcess. Unlike &lt;data&gt;/
+        &lt;group&gt;, this element is NOT reordered by GoobiXmlReader before
+        parsing, so &lt;title&gt; and the optional &lt;batch&gt; are modeled
+        here as leading, in-order elements (matching every sample file);
+        the repeatable property/journal/content elements may then follow in
+        any order.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="title" type="nonEmptyString">
+        <xs:annotation>
+          <xs:documentation>Becomes the Goobi process title (sanitized via the configured title-replacement regex). Required: dereferenced unconditionally.</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="batch" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>Optional batch name; an existing batch of the same name is reused, otherwise a new one is created.</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="property" type="propertyType"/>
+        <xs:element name="journal" type="journalType"/>
+        <xs:element name="content" type="contentType">
+          <xs:annotation>
+            <xs:documentation>Content declared here is merged into the top-level &lt;data&gt; element's own content list before structure-building (e.g. a master file not tied to any specific page).</xs:documentation>
+          </xs:annotation>
+        </xs:element>
+      </xs:choice>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="propertyType">
+    <xs:annotation>
+      <xs:documentation>Becomes a Goobi process property (Processproperty). Maps to SimpleProperty.</xs:documentation>
+    </xs:annotation>
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="name" type="xs:string" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="journalType">
+    <xs:annotation>
+      <xs:documentation>
+        Becomes a process journal/log entry. Maps to SimpleJournalEntry.
+        type="..." must match a Goobi LogType title (see
+        org.goobi.production.enums.LogType). Note: creator="..." is
+        accepted here but currently IGNORED by the plugin — the journal
+        entry's creator is always hardcoded to "Plugin " + the plugin's
+        configured display title (WuWmaImportWorkflowPlugin.java), not the
+        value given in this attribute.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="type" use="required">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="error"/>
+              <xs:enumeration value="warn"/>
+              <xs:enumeration value="info"/>
+              <xs:enumeration value="debug"/>
+              <xs:enumeration value="user"/>
+              <xs:enumeration value="status"/>
+              <xs:enumeration value="file"/>
+              <xs:enumeration value="important"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:attribute>
+        <xs:attribute name="creator" type="xs:string" use="optional"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- ============================== shared simple types ============================== -->
+
+  <xs:simpleType name="nonEmptyString">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>
