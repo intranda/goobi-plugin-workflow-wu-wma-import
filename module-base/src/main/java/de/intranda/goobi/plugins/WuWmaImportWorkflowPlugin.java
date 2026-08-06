@@ -244,10 +244,18 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
             // read input file
             try {
                 updateLog("Run through all import files");
+
+                // every message below follows the same shape, so the cause is readable at a glance:
+                // "Import set 'X': <what is wrong>. <where to fix it>"
+                String setLabel = "Import set '" + importset.getTitle() + "': ";
+                String configFile = "plugin_" + id + ".xml";
+
                 // run through all goobi.xml files in the given folder
                 File sourceFolder = new File(importset.getSource());
                 if (!sourceFolder.isDirectory()) {
-                    updateLog("Source folder '" + importset.getSource() + "' does not exist or is not a directory.", 3);
+                    updateLog(setLabel + "the configured source folder '" + importset.getSource()
+                            + "' does not exist or is not a directory. Please check the 'source' attribute of this"
+                            + " importSet in " + configFile + ".", 3);
                     return;
                 }
                 String[] extensions = { "goobi.xml" };
@@ -259,6 +267,44 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
                 st.setItemsTotal(files.size());
                 st.setItemCurrent(0);
+
+                // no import file at all: without this the run would just end with "Import completed."
+                // and look like a successful import that happened to have no records
+                if (files.isEmpty()) {
+                    updateLog(setLabel + "no import files were found in '" + importset.getSource()
+                            + "', subfolders included. Expected file names ending in '.goobi.xml'."
+                            + " Nothing was imported.", 3);
+                    return;
+                }
+
+                // the configured process template is the same for every record, so report a
+                // configuration that does not match this Goobi installation once here, not per file
+                String workflowTitle = importset.getWorkflow();
+                if (StringUtils.isBlank(workflowTitle) || "-".equals(workflowTitle)) {
+                    updateLog(setLabel + "no process template is configured. Please set the 'workflow' attribute of"
+                            + " this importSet in " + configFile + ".", 3);
+                    return;
+                }
+                Process configuredTemplate = ProcessManager.getProcessByExactTitle(workflowTitle);
+                if (configuredTemplate == null) {
+                    updateLog(setLabel + "no process template named '" + workflowTitle + "' exists in Goobi."
+                            + " Please check the 'workflow' attribute of this importSet in " + configFile
+                            + " and the title of the process template.", 3);
+                    return;
+                }
+                if (configuredTemplate.getRegelsatz() == null) {
+                    updateLog(setLabel + "the process template '" + workflowTitle + "' has no ruleset assigned."
+                            + " Please assign a ruleset to this process template in Goobi.", 3);
+                    return;
+                }
+                // getPreferences() returns null if the ruleset file is missing or cannot be parsed
+                if (configuredTemplate.getRegelsatz().getPreferences() == null) {
+                    updateLog(setLabel + "the ruleset '" + configuredTemplate.getRegelsatz().getTitel() + "' (file '"
+                            + configuredTemplate.getRegelsatz().getDatei() + "') of process template '" + workflowTitle
+                            + "' could not be loaded. Please check that this file exists in the ruleset folder and"
+                            + " that it is valid.", 3);
+                    return;
+                }
 
                 for (File file : files) {
                     // little delay
@@ -276,23 +322,23 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                             // get the correct workflow to use
                             Process template = ProcessManager.getProcessByExactTitle(importset.getWorkflow());
                             if (template == null) {
-                                throw new ImportException("No production template found with title '"
+                                throw new ImportException("No process template found with title '"
                                         + importset.getWorkflow() + "' (importSet '" + importset.getTitle()
                                         + "'). Please check the 'workflow' value in the plugin configuration.");
                             }
                             if (template.getRegelsatz() == null) {
-                                throw new ImportException("The production template '" + template.getTitel()
+                                throw new ImportException("The process template '" + template.getTitel()
                                         + "' has no ruleset assigned.");
                             }
                             Prefs prefs;
                             try {
                                 prefs = template.getRegelsatz().getPreferences();
                             } catch (Exception e) {
-                                throw new ImportException("The ruleset of template '" + template.getTitel()
+                                throw new ImportException("The ruleset of process template '" + template.getTitel()
                                         + "' could not be loaded (invalid ruleset?): " + e.getMessage());
                             }
                             if (prefs == null) {
-                                throw new ImportException("The ruleset of template '" + template.getTitel()
+                                throw new ImportException("The ruleset of process template '" + template.getTitel()
                                         + "' could not be loaded (invalid ruleset?).");
                             }
 
@@ -304,14 +350,14 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                             // add the physical basics
                             DocStructType boundBookType = prefs.getDocStrctTypeByName("BoundBook");
                             if (boundBookType == null) {
-                                throw new ImportException("The ruleset of template '" + template.getTitel()
+                                throw new ImportException("The ruleset of process template '" + template.getTitel()
                                         + "' does not contain the required DocStruct type 'BoundBook'.");
                             }
                             DocStruct physical = dd.createDocStruct(boundBookType);
                             dd.setPhysicalDocStruct(physical);
                             MetadataType pathImageType = prefs.getMetadataTypeByName("pathimagefiles");
                             if (pathImageType == null) {
-                                throw new ImportException("The ruleset of template '" + template.getTitel()
+                                throw new ImportException("The ruleset of process template '" + template.getTitel()
                                         + "' does not contain the required metadata type 'pathimagefiles'.");
                             }
                             Metadata mdForPath = new Metadata(pathImageType);
@@ -552,6 +598,11 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                 updateLog("Import aborted: " + e.getMessage(), 3);
             } finally {
                 st.setRun(false);
+                // closing push, also for the early returns above: updateLog() only pushes once per
+                // 500ms, so a message from a run that ends immediately would otherwise stay unsent
+                if (pusher != null) {
+                    pusher.send("update");
+                }
             }
 
         };
