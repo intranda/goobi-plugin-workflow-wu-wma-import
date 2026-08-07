@@ -271,36 +271,39 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                 // no import file at all: without this the run would just end with "Import completed."
                 // and look like a successful import that happened to have no records
                 if (files.isEmpty()) {
+                    // listFiles() matches on "." + extension, so show the endings the same way
+                    String expectedEndings = "." + String.join(", .", extensions);
                     updateLog(setLabel + "no import files were found in '" + importset.getSource()
-                            + "', subfolders included. Expected file names ending in '.goobi.xml'."
-                            + " Nothing was imported.", 3);
+                            + "', subfolders included. Expected file name endings are: " + expectedEndings
+                            + ". Nothing was imported.", 3);
                     return;
                 }
 
-                // the configured process template is the same for every record, so report a
-                // configuration that does not match this Goobi installation once here, not per file
+                // the process template and its ruleset are the same for every record, so resolve and
+                // check them once here and reuse them in the loop below
                 String workflowTitle = importset.getWorkflow();
                 if (StringUtils.isBlank(workflowTitle) || "-".equals(workflowTitle)) {
                     updateLog(setLabel + "no process template is configured. Please set the 'workflow' attribute of"
                             + " this importSet in " + configFile + ".", 3);
                     return;
                 }
-                Process configuredTemplate = ProcessManager.getProcessByExactTitle(workflowTitle);
-                if (configuredTemplate == null) {
+                Process template = ProcessManager.getProcessByExactTitle(workflowTitle);
+                if (template == null) {
                     updateLog(setLabel + "no process template named '" + workflowTitle + "' exists in Goobi."
                             + " Please check the 'workflow' attribute of this importSet in " + configFile
                             + " and the title of the process template.", 3);
                     return;
                 }
-                if (configuredTemplate.getRegelsatz() == null) {
+                if (template.getRegelsatz() == null) {
                     updateLog(setLabel + "the process template '" + workflowTitle + "' has no ruleset assigned."
                             + " Please assign a ruleset to this process template in Goobi.", 3);
                     return;
                 }
                 // getPreferences() returns null if the ruleset file is missing or cannot be parsed
-                if (configuredTemplate.getRegelsatz().getPreferences() == null) {
-                    updateLog(setLabel + "the ruleset '" + configuredTemplate.getRegelsatz().getTitel() + "' (file '"
-                            + configuredTemplate.getRegelsatz().getDatei() + "') of process template '" + workflowTitle
+                Prefs prefs = template.getRegelsatz().getPreferences();
+                if (prefs == null) {
+                    updateLog(setLabel + "the ruleset '" + template.getRegelsatz().getTitel() + "' (file '"
+                            + template.getRegelsatz().getDatei() + "') of process template '" + workflowTitle
                             + "' could not be loaded. Please check that this file exists in the ruleset folder and"
                             + " that it is valid.", 3);
                     return;
@@ -318,29 +321,6 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                             updateLog("Start importing: Record " + (st.getItemCurrent() + 1), 1);
 
                             List<SimpleContent> allContentFiles = new ArrayList<>();
-
-                            // get the correct workflow to use
-                            Process template = ProcessManager.getProcessByExactTitle(importset.getWorkflow());
-                            if (template == null) {
-                                throw new ImportException("No process template found with title '"
-                                        + importset.getWorkflow() + "' (importSet '" + importset.getTitle()
-                                        + "'). Please check the 'workflow' value in the plugin configuration.");
-                            }
-                            if (template.getRegelsatz() == null) {
-                                throw new ImportException("The process template '" + template.getTitel()
-                                        + "' has no ruleset assigned.");
-                            }
-                            Prefs prefs;
-                            try {
-                                prefs = template.getRegelsatz().getPreferences();
-                            } catch (Exception e) {
-                                throw new ImportException("The ruleset of process template '" + template.getTitel()
-                                        + "' could not be loaded (invalid ruleset?): " + e.getMessage());
-                            }
-                            if (prefs == null) {
-                                throw new ImportException("The ruleset of process template '" + template.getTitel()
-                                        + "' could not be loaded (invalid ruleset?).");
-                            }
 
                             // create digital document
                             Fileformat fileformat = new MetsMods(prefs);
