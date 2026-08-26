@@ -42,24 +42,17 @@
             padding: 5px;
         }
     </style>
-    <h:panelGroup>
-        <div class="row">
-            <div class="col-sm-12">
-                <h:panelGroup
-                    rendered="#{!LoginForm.hasRole('Plugin_workflow_wu_wma_import')}"
-                    layout="block">
-                    <h:outputText
-                        styleClass="alert alert-danger"
-                        value="#{msgs.plugin_administration_missingPermission} Plugin_workflow_wu_wma_import"/>
-                </h:panelGroup>
-                <ui:fragment rendered="#{LoginForm.hasRole('Plugin_workflow_wu_wma_import')}">
+    <util:missing-rights rights="Plugin_workflow_wu_wma_import">
+        <h:panelGroup>
+            <div class="row">
+                <div class="col-sm-12">
                     <section:section type="neutral">
                         <section:header
                             icon="plug"
                             title="#{msgs[NavigationForm.workflowPlugin.title]}" />
                         <h:form
                             id="myform"
-                        	prependId="false"
+                            prependId="false"
                             onkeypress="submitOnEnter(event);">
                             <section:body padding="true">
 
@@ -83,13 +76,11 @@
                                         </div>
                                     </h:panelGroup>
                                 </h:panelGroup>
-                                <ui:fragment rendered="#{NavigationForm.workflowPlugin.errors > 0}">
-                                    <div class="alert alert-danger mt-3" role="alert">
-                                      <div>
-                                        <h:outputText value="#{msgs.ProcessCreationError_mets_save_error} (#{msgs.count}: #{NavigationForm.workflowPlugin.errors})"/>
-                                      </div>
-                                    </div>
-                                </ui:fragment>
+                                <util:alert
+                                    type="danger"
+                                    message="#{msgs.ProcessCreationError_mets_save_error} (#{msgs.count}: #{NavigationForm.workflowPlugin.errors})"
+                                    styleClass="mt-3"
+                                    rendered="#{NavigationForm.workflowPlugin.errors > 0}" />
 
                                 <!-- // progress bar -->
                             </section:body>
@@ -142,21 +133,21 @@
                             </o:socket>
                         </h:form>
                     </section:section>
-                </ui:fragment>
+                </div>
             </div>
-        </div>
-    </h:panelGroup>
-
-    <!-- log view -->
-    <h:panelGroup id="logs">
-        <h:panelGroup styleClass="logs" rendered="#{LoginForm.hasRole('Plugin_workflow_wu_wma_import')}">
-            <ui:repeat
-                var="log"
-                value="#{NavigationForm.workflowPlugin.logQueue}">
-                <h:outputText value="#{log.message}" style="#{log.level eq 3 ? 'color: red' : log.level eq 2 ? 'font-weight: bold' : log.level eq 1 ? '' : 'color: #ccc'}"/>
-                <br/>
-            </ui:repeat>
         </h:panelGroup>
-    </h:panelGroup>
-    <!-- // log view -->
+
+        <!-- log view -->
+        <h:panelGroup id="logs">
+            <h:panelGroup styleClass="logs" rendered="#{LoginForm.hasRole('Plugin_workflow_wu_wma_import')}">
+                <ui:repeat
+                    var="log"
+                    value="#{NavigationForm.workflowPlugin.logQueue}">
+                    <h:outputText value="#{log.message}" style="#{log.level eq 3 ? 'color: red' : log.level eq 2 ? 'font-weight: bold' : log.level eq 1 ? '' : 'color: #ccc'}"/>
+                    <br/>
+                </ui:repeat>
+            </h:panelGroup>
+        </h:panelGroup>
+        <!-- // log view -->
+    </util:missing-rights>
 </ui:composition>
