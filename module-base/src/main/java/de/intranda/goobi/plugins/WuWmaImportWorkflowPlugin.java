@@ -350,7 +350,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                                 sio = GoobiXmlReader.readReordered(file, om);
                             } catch (Exception e) {
                                 throw new ImportException("The import file is not valid XML or could not be parsed: "
-                                        + e.getMessage());
+                                        + e.getMessage(), e);
                             }
                             if (sio.getData() == null) {
                                 throw new ImportException("The import file has no <data> element.");
@@ -679,7 +679,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
             } catch (MetadataTypeNotAllowedException e) {
                 throw new ImportException("Metadata '" + metadata.getType().getName() + "' is not allowed for DocStruct '"
                         + ds.getType().getName()
-                        + "' - either the type is not permitted here, or its allowed number is exceeded.");
+                        + "' - either the type is not permitted here, or its allowed number is exceeded.", e);
             }
         }
 
@@ -691,7 +691,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
             } catch (MetadataTypeNotAllowedException e) {
                 throw new ImportException("Corporate '" + (sc.getRole() == null ? "" : sc.getRole().trim())
                         + "' is not allowed for DocStruct '" + ds.getType().getName()
-                        + "' - either the type is not permitted here, or its allowed number is exceeded.");
+                        + "' - either the type is not permitted here, or its allowed number is exceeded.", e);
             }
         }
 
@@ -703,7 +703,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
             } catch (MetadataTypeNotAllowedException e) {
                 throw new ImportException("Metadata group '" + (sg.getType() == null ? "" : sg.getType().trim())
                         + "' is not allowed for DocStruct '" + ds.getType().getName()
-                        + "' - either the type is not permitted here, or its allowed number is exceeded.");
+                        + "' - either the type is not permitted here, or its allowed number is exceeded.", e);
             }
         }
 
@@ -715,7 +715,7 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
             } catch (MetadataTypeNotAllowedException e) {
                 throw new ImportException("Person '" + (sp.getRole() == null ? "" : sp.getRole().trim())
                         + "' is not allowed for DocStruct '" + ds.getType().getName()
-                        + "' - either the type is not permitted here, or its allowed number is exceeded.");
+                        + "' - either the type is not permitted here, or its allowed number is exceeded.", e);
             }
         }
 
@@ -961,6 +961,10 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
 
         ImportException(String message) {
             super(message);
+        }
+
+        ImportException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }
