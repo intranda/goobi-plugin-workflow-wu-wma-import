@@ -451,14 +451,8 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
                             for (SimpleContent con : allContentFiles) {
                                 String folder = con.getFolder() == null ? "" : con.getFolder().trim();
                                 if (folder.isEmpty()) {
-                                    updateLog("Error: Content entry without a 'folder' attribute (source '"
-                                            + con.getSource() + "') - skipped", 3);
-                                    continue;
-                                }
-                                if (con.getSource() == null) {
-                                    updateLog("Error: Content entry in folder '" + folder
-                                            + "' has no source path - skipped", 3);
-                                    continue;
+                                    throw new ImportException("The content file '" + con.getSource().trim()
+                                            + "' has no 'folder' attribute, so its target folder inside the process is unknown.");
                                 }
                                 String targetBase = process.getConfiguredImageFolder(folder);
 
@@ -722,9 +716,8 @@ public class WuWmaImportWorkflowPlugin implements IWorkflowPlugin, IPushPlugin, 
         // add all file references
         for (SimpleContent con : sd.getContents()) {
 
-            if (con.getSource() == null || con.getSource().trim().isEmpty()) {
-                updateLog("Content entry without a source path - skipped", 2);
-                continue;
+            if (StringUtils.isBlank(con.getSource())) {
+                throw new ImportException("A <content> element without a file path was found.");
             }
 
             if (assignPages) {
